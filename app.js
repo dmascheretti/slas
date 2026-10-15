@@ -945,7 +945,7 @@ function questionsForSlide(lecture, n) {
 
 SCREENS.slides = function () {
   setTitle("Slides");
-  view.append(el(`<div><div class="eyebrow">Lectures 0–5</div><h2 class="section">Slides with study notes</h2></div>`));
+  view.append(el(`<div><div class="eyebrow">Lectures 0–10</div><h2 class="section">Slides with study notes</h2></div>`));
   view.append(el(`<p class="lede">${HAS_SLIDE_IMAGES ? "Every slide with" : "For every slide:"} the key idea, an explanation, exam tips and the related questions from your bank.${HAS_SLIDE_IMAGES ? "" : " The slide images themselves are only in your private version (they are copyrighted), so open the PDF next to these notes."}</p>`));
   const list = el(`<div class="lect-list"></div>`);
   for (const d of window.SLIDES || []) {
