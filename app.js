@@ -183,6 +183,7 @@ const ICON = {
   quiz: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M9.5 9.5a2.5 2.5 0 1 1 3.5 2.3c-.6.3-1 .9-1 1.6V14"/><path d="M12 17.5v.01"/></svg>',
   flame: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3c1 3 5 5 5 10a5 5 0 0 1-10 0c0-2 1-3.5 2-4.5 0 2 1 3 2 3 0-3-1-5 1-8.5z"/></svg>',
   book: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 5a2 2 0 0 1 2-2h13v16H6a2 2 0 0 0-2 2z"/><path d="M4 19V5"/></svg>',
+  slides: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="12" rx="1.5"/><path d="M12 16v4M8 20h8"/><path d="M7 8h6M7 11h9"/></svg>',
   arrow: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 6l6 6-6 6"/></svg>'
 };
 
@@ -404,6 +405,8 @@ SCREENS.lecture = function (screen) {
     b.addEventListener("click", fn);
     actions.append(b);
   };
+  const deckInfo = slideDeck(lectNum);
+  if (l.id !== "BP" && deckInfo) qa(ICON.slides, "Slides", `${shownSlides(deckInfo).length} with notes`, () => { switchTab("slides"); go({ name: "deck", lecture: lectNum, i: 0 }); });
   qa(ICON.cards, "Flashcards", `${l.questions.length} cards`, () => { switchTab("cards"); startDeck("L:" + l.id, true); });
   if (nBasic) qa(ICON.quiz, "Quiz", `${nBasic} questions`, () => { switchTab("quiz"); startQuiz(lectNum, "basic"); });
   if (nHard) qa(ICON.flame, "Hard quiz", `${nHard} questions`, () => { switchTab("quiz"); startQuiz(lectNum, "hard"); });
@@ -739,6 +742,11 @@ document.addEventListener("keydown", e => {
     else if (deck.flipped && e.key === "2") gradeCurrent("hard");
     else if (deck.flipped && e.key === "3") gradeCurrent("easy");
   }
+  if (screen.name === "deck") {
+    const d = slideDeck(screen.lecture);
+    if (e.key === "ArrowRight" && screen.i < shownSlides(d).length - 1) { screen.i++; screen.scroll = 0; render(); }
+    if (e.key === "ArrowLeft" && screen.i > 0) { screen.i--; screen.scroll = 0; render(); }
+  }
   if (screen.name === "quiz" && quiz && quiz.index < quiz.items.length) {
     const it = quiz.items[quiz.index];
     const pos = "1234".indexOf(e.key) >= 0 ? "1234".indexOf(e.key) : "abcd".indexOf(e.key.toLowerCase());
@@ -820,7 +828,7 @@ SCREENS.exam = function (screen) {
     for (let p = 1; p <= ex.pages; p++) {
       const src = `exams/${ex.iso}-${p}.jpg`;
       const img = el(`<img class="page-img" loading="lazy" alt="Exam ${esc(ex.date)}, page ${p}" src="${src}">`);
-      img.addEventListener("click", () => openViewer(ex, p));
+      img.addEventListener("click", () => openViewer(ex.pages, n => `exams/${ex.iso}-${n}.jpg`, p));
       pages.append(img);
     }
     view.append(pages);
@@ -845,9 +853,10 @@ SCREENS.topic = function (screen) {
 };
 
 // Full-screen page viewer with zoom and previous/next page
-function openViewer(ex, page) {
+// Full-screen page viewer. pages = number of pages, src(p) = image url of page p.
+function openViewer(pages, src, page) {
   let zoom = 1;
-  const v = el(`<div class="viewer" role="dialog" aria-label="Exam page">
+  const v = el(`<div class="viewer" role="dialog" aria-label="Page viewer">
     <div class="vbar">
       <button id="prevBtn" aria-label="Previous page">‹</button>
       <span id="pageNo" class="tnum"></span>
@@ -856,19 +865,19 @@ function openViewer(ex, page) {
       <button id="zoomBtn">Zoom 2×</button>
       <button id="closeBtn">Close</button>
     </div>
-    <img alt="Exam page">
+    <img alt="Page">
   </div>`);
   const img = v.querySelector("img");
   const show = () => {
-    img.src = `exams/${ex.iso}-${page}.jpg`;
+    img.src = src(page);
     img.style.width = (zoom * 100) + "vw";
-    v.querySelector("#pageNo").textContent = page + " / " + ex.pages;
+    v.querySelector("#pageNo").textContent = page + " / " + pages;
     v.querySelector("#prevBtn").disabled = page <= 1;
-    v.querySelector("#nextBtn").disabled = page >= ex.pages;
+    v.querySelector("#nextBtn").disabled = page >= pages;
     v.scrollTo(0, 0);
   };
   v.querySelector("#prevBtn").addEventListener("click", () => { if (page > 1) { page--; show(); } });
-  v.querySelector("#nextBtn").addEventListener("click", () => { if (page < ex.pages) { page++; show(); } });
+  v.querySelector("#nextBtn").addEventListener("click", () => { if (page < pages) { page++; show(); } });
   v.querySelector("#zoomBtn").addEventListener("click", () => {
     zoom = zoom === 1 ? 2 : 1;
     v.querySelector("#zoomBtn").textContent = zoom === 1 ? "Zoom 2×" : "Fit width";
@@ -878,6 +887,171 @@ function openViewer(ex, page) {
   document.body.append(v);
   show();
 }
+
+
+// ---------------- Slides with study notes ----------------
+// Slide images are shown only where they are available (private version);
+// the notes are always shown.
+const HAS_SLIDE_IMAGES = !!window.SLIDE_IMAGES;
+
+function slideDeck(lecture) { return (window.SLIDES || []).find(d => d.lecture === lecture); }
+function shownSlides(deck) { const a = []; for (let i = 1; i <= deck.count; i++) a.push(i); return a; }
+function slideImage(deck, n) { return `slides/${deck.file}-${String(n).padStart(2, "0")}.jpg`; }
+// Note for slide n: an exact key, or a range key "a-b" containing n.
+function slideNote(deck, n) {
+  if (deck.notes[String(n)]) return { note: deck.notes[String(n)], from: n, to: n };
+  for (const key of Object.keys(deck.notes)) {
+    const m = key.match(/^(\d+)-(\d+)$/);
+    if (m && n >= +m[1] && n <= +m[2]) return { note: deck.notes[key], from: +m[1], to: +m[2] };
+  }
+  return null;
+}
+// Slide numbers in the bank refer to the complete Lecture 4 PDF (28 slides):
+// slides 21–22 there are slides 20–21 of the "part 1" PDF used here.
+function bankToShownSlide(lecture, n) {
+  if (lecture === 4 && n >= 21) return n - 1;
+  if (lecture === 4 && n === 20) return null;
+  return n;
+}
+// Map lecture -> slide -> [question ids], built from the "Source:" lines of the bank.
+let slideRefs = null;
+function buildSlideRefs() {
+  slideRefs = {};
+  for (const q of allPart1().concat(allPart2())) {
+    const re = /Lecture (\d+), slides? ([0-9][0-9–\-, ]*(?:and [0-9]+)?)/g;
+    let m;
+    while ((m = re.exec(q.source))) {
+      const lec = +m[1];
+      const nums = [];
+      const part = /(\d+)\s*[–-]\s*(\d+)|(\d+)/g;
+      let p;
+      while ((p = part.exec(m[2]))) {
+        if (p[1]) { for (let k = +p[1]; k <= +p[2]; k++) nums.push(k); } else nums.push(+p[3]);
+      }
+      for (const n0 of nums) {
+        const n = bankToShownSlide(lec, n0);
+        if (n == null) continue;
+        slideRefs[lec] = slideRefs[lec] || {};
+        slideRefs[lec][n] = slideRefs[lec][n] || [];
+        if (!slideRefs[lec][n].includes(q.id)) slideRefs[lec][n].push(q.id);
+      }
+    }
+  }
+}
+function questionsForSlide(lecture, n) {
+  if (!slideRefs) buildSlideRefs();
+  return ((slideRefs[lecture] || {})[n] || []).map(id => data.byId[id]).filter(Boolean);
+}
+
+SCREENS.slides = function () {
+  setTitle("Slides");
+  view.append(el(`<div><div class="eyebrow">Lectures 0–5</div><h2 class="section">Slides with study notes</h2></div>`));
+  view.append(el(`<p class="lede">${HAS_SLIDE_IMAGES ? "Every slide with" : "For every slide:"} the key idea, an explanation, exam tips and the related questions from your bank.${HAS_SLIDE_IMAGES ? "" : " The slide images themselves are only in your private version (they are copyrighted), so open the PDF next to these notes."}</p>`));
+  const list = el(`<div class="lect-list"></div>`);
+  for (const d of window.SLIDES || []) {
+    const last = (progress.slidePos || {})[d.lecture];
+    const nRefs = shownSlides(d).filter(n => questionsForSlide(d.lecture, n).length).length;
+    const b = el(`<button class="card lect">
+      <span class="num">L${d.lecture}</span>
+      <span style="min-width:0"><div class="t">${esc(d.title)}</div>
+        <div class="meta"><span class="tnum">${d.count} slides</span>${nRefs ? `<span class="tnum">${nRefs} linked to questions</span>` : ""}</div></span>
+      <span class="pct">${last ? "slide " + last : ""}</span>
+    </button>`);
+    b.addEventListener("click", () => go({ name: "deck", lecture: d.lecture, i: last ? last - 1 : 0 }));
+    list.append(b);
+  }
+  view.append(list);
+};
+
+SCREENS.deck = function (screen) {
+  const d = slideDeck(screen.lecture);
+  const nums = shownSlides(d);
+  screen.i = Math.max(0, Math.min(nums.length - 1, screen.i || 0));
+  const n = nums[screen.i];
+  progress.slidePos = progress.slidePos || {};
+  progress.slidePos[d.lecture] = n; save();
+  setTitle(`L${d.lecture} · slide ${n}`);
+
+  const goTo = i => { screen.i = i; screen.scroll = 0; render(); };
+
+  // Header: title + jump menu
+  const head = el(`<div class="stackgap">
+    <div class="eyebrow">Lecture ${d.lecture} · ${esc(d.title)}</div>
+    <select id="jump" class="jump" aria-label="Jump to slide"></select>
+  </div>`);
+  const sel = head.querySelector("#jump");
+  nums.forEach((k, idx) => {
+    const sn = slideNote(d, k);
+    const o = document.createElement("option");
+    o.value = idx;
+    o.textContent = `${k}. ${sn ? sn.note.k : ""}`;
+    if (idx === screen.i) o.selected = true;
+    sel.append(o);
+  });
+  sel.addEventListener("change", () => goTo(+sel.value));
+  view.append(head);
+  view.append(el(`<div class="bar"><i style="width:${100 * (screen.i + 1) / nums.length}%;background:var(--accent)"></i></div>`));
+
+  // Slide image (private version only)
+  if (HAS_SLIDE_IMAGES) {
+    const fig = el(`<figure class="slide-fig"><img class="slide-img" alt="Lecture ${d.lecture}, slide ${n}" src="${slideImage(d, n)}"></figure>`);
+    const img = fig.querySelector("img");
+    img.addEventListener("click", () => openViewer(nums.length, k => slideImage(d, nums[k - 1]), screen.i + 1));
+    img.addEventListener("error", () => fig.remove());
+    // Swipe left/right on the slide to change slide
+    let x0 = null, y0 = null;
+    fig.addEventListener("touchstart", e => { x0 = e.touches[0].clientX; y0 = e.touches[0].clientY; }, { passive: true });
+    fig.addEventListener("touchend", e => {
+      if (x0 === null) return;
+      const dx = e.changedTouches[0].clientX - x0, dy = e.changedTouches[0].clientY - y0;
+      x0 = null;
+      if (Math.abs(dx) > 60 && Math.abs(dx) > 2 * Math.abs(dy)) {
+        if (dx < 0 && screen.i < nums.length - 1) goTo(screen.i + 1);
+        if (dx > 0 && screen.i > 0) goTo(screen.i - 1);
+      }
+    });
+    view.append(fig);
+  }
+
+  // Navigation
+  const nav = el(`<div class="row">
+    <button class="btn ghost grow" id="prev" ${screen.i === 0 ? "disabled" : ""}>‹ Previous</button>
+    <span class="small muted tnum">${screen.i + 1} / ${nums.length}</span>
+    <button class="btn grow" id="next" ${screen.i === nums.length - 1 ? "disabled" : ""}>Next ›</button>
+  </div>`);
+  nav.querySelector("#prev").addEventListener("click", () => goTo(screen.i - 1));
+  nav.querySelector("#next").addEventListener("click", () => goTo(screen.i + 1));
+  view.append(nav);
+
+  // Study note
+  const sn = slideNote(d, n);
+  if (sn) {
+    const star = /★/.test(sn.note.k);
+    const node = el(`<section class="card note">
+      <div class="row"><span class="eyebrow grow">${sn.from === sn.to ? "Slide " + n : `Slides ${sn.from}–${sn.to}`}</span>${star ? '<span class="badge-star">★ must-know</span>' : ""}</div>
+      <h3>${esc(sn.note.k.replace(/\s*★\s*$/, ""))}</h3>
+      <div class="md">${md(sn.note.b)}</div>
+      ${sn.note.x ? `<div class="tip"><b>Exam tip</b><div class="md">${md(sn.note.x)}</div></div>` : ""}
+    </section>`);
+    view.append(node);
+  }
+
+  // Related questions from the bank
+  const qs = questionsForSlide(d.lecture, n);
+  if (qs.length) {
+    view.append(el(`<div class="eyebrow">Questions on this slide · ${qs.length}</div>`));
+    const list = el(`<div class="qlist"></div>`);
+    for (const q of qs) list.append(questionCard(q, false));
+    view.append(list);
+  }
+
+  // Bottom navigation again, after reading
+  if (sn || qs.length) {
+    const nav2 = el(`<button class="btn" ${screen.i === nums.length - 1 ? "disabled" : ""}>${screen.i === nums.length - 1 ? "Last slide" : "Next slide ›"}</button>`);
+    nav2.addEventListener("click", () => { goTo(screen.i + 1); window.scrollTo(0, 0); });
+    view.append(nav2);
+  }
+};
 
 // ---------------- Boards ----------------
 SCREENS.boards = function () {
@@ -989,7 +1163,7 @@ fetch(COURSE.bank)
   .then(text => {
     parseBank(text);
     try { history.replaceState({ depth: 1 }, ""); } catch (e) { /* ignore */ }
-    switchTab(SCREENS[progress.lastTab] && ["learn", "cards", "quiz", "exams", "boards"].includes(progress.lastTab) ? progress.lastTab : "learn");
+    switchTab(SCREENS[progress.lastTab] && ["learn", "slides", "cards", "quiz", "exams", "boards"].includes(progress.lastTab) ? progress.lastTab : "learn");
   })
   .catch(err => {
     view.innerHTML = "";

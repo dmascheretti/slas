@@ -1,12 +1,13 @@
 // Service worker: keeps every file of the app on the device so it works offline.
 // Bump VERSION whenever content changes, so devices download the new files.
-const VERSION = "slas-v2";
+const VERSION = "slas-v3";
 const FILES = [
  "./",
  "index.html",
  "bank.md",
  "quiz.js",
  "app.js",
+ "slides.js",
  "marked.min.js",
  "manifest.webmanifest",
  "icon-192.png",
