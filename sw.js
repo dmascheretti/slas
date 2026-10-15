@@ -1,11 +1,12 @@
 // Service worker: keeps every file of the app on the device so it works offline.
 // Bump VERSION whenever content changes, so devices download the new files.
-const VERSION = "slas-v1";
+const VERSION = "slas-v2";
 const FILES = [
  "./",
  "index.html",
  "bank.md",
  "quiz.js",
+ "app.js",
  "marked.min.js",
  "manifest.webmanifest",
  "icon-192.png",
@@ -89,8 +90,9 @@ self.addEventListener("fetch", event => {
     event.respondWith(
       fetch(req)
         .then(res => {
-          if (res.ok) { const copy = res.clone(); caches.open(VERSION).then(c => c.put(req, copy)); }
-          return res;
+          if (res.ok) { const copy = res.clone(); caches.open(VERSION).then(c => c.put(req, copy)); return res; }
+          // Site unreachable or file missing (e.g. 404): use the saved copy if there is one.
+          return caches.match(req, { ignoreSearch: true }).then(hit => hit || res);
         })
         .catch(() => caches.match(req, { ignoreSearch: true }))
     );
