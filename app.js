@@ -184,6 +184,7 @@ const ICON = {
   flame: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3c1 3 5 5 5 10a5 5 0 0 1-10 0c0-2 1-3.5 2-4.5 0 2 1 3 2 3 0-3-1-5 1-8.5z"/></svg>',
   book: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 5a2 2 0 0 1 2-2h13v16H6a2 2 0 0 0-2 2z"/><path d="M4 19V5"/></svg>',
   slides: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="12" rx="1.5"/><path d="M12 16v4M8 20h8"/><path d="M7 8h6M7 11h9"/></svg>',
+  play: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M10 8.5v7l6-3.5z"/></svg>',
   arrow: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 6l6 6-6 6"/></svg>'
 };
 
@@ -206,6 +207,8 @@ function go(screen) {
 function back() {
   if (stack.length > 1) history.back();
 }
+// The phone/browser back button closes the current screen. After a tab switch
+// some old history entries may remain: going back over them simply does nothing.
 window.addEventListener("popstate", () => {
   if (stack.length > 1) { stack.pop(); render(); }
 });
@@ -213,10 +216,7 @@ function switchTab(tab) {
   currentTab = tab;
   progress.lastTab = tab; save();
   document.querySelectorAll(".tab").forEach(t => t.setAttribute("aria-current", t.dataset.tab === tab ? "page" : "false"));
-  // Drop any screens pushed on the previous tab
-  const extra = stack.length - 1;
   stack = [{ name: tab }];
-  if (extra > 0) { try { history.go(-extra); } catch (e) { /* ignore */ } }
   render();
 }
 function render() {
@@ -409,6 +409,8 @@ SCREENS.lecture = function (screen) {
   if (l.id !== "BP" && deckInfo) qa(ICON.slides, "Slides", `${shownSlides(deckInfo).length} with notes`, () => { switchTab("slides"); go({ name: "deck", lecture: lectNum, i: 0 }); });
   qa(ICON.cards, "Flashcards", `${l.questions.length} cards`, () => { switchTab("cards"); startDeck("L:" + l.id, true); });
   if (nBasic) qa(ICON.quiz, "Quiz", `${nBasic} questions`, () => { switchTab("quiz"); startQuiz(lectNum, "basic"); });
+  const vizIds = l.id === "BP" ? [] : vizForLecture(lectNum);
+  if (vizIds.length) qa(ICON.play, "Visuals", `${vizIds.length} interactive`, () => go({ name: "visuals", lecture: lectNum }));
   if (nHard) qa(ICON.flame, "Hard quiz", `${nHard} questions`, () => { switchTab("quiz"); startQuiz(lectNum, "hard"); });
   view.append(actions);
 
@@ -944,7 +946,7 @@ function questionsForSlide(lecture, n) {
 }
 
 SCREENS.slides = function () {
-  setTitle("Slides");
+  setTitle("Slides & visuals");
   view.append(el(`<div><div class="eyebrow">Lectures 0–10</div><h2 class="section">Slides with study notes</h2></div>`));
   view.append(el(`<p class="lede">${HAS_SLIDE_IMAGES ? "Every slide with" : "For every slide:"} the key idea, an explanation, exam tips and the related questions from your bank.${HAS_SLIDE_IMAGES ? "" : " The slide images themselves are only in your private version (they are copyrighted), so open the PDF next to these notes."}</p>`));
   const list = el(`<div class="lect-list"></div>`);
@@ -961,6 +963,40 @@ SCREENS.slides = function () {
     list.append(b);
   }
   view.append(list);
+
+  // Interactive visuals, grouped by lecture
+  view.append(el(`<div><div class="eyebrow">${Object.keys(window.VIZ || {}).length} animations and simulations</div><h2 class="section">Interactive visuals</h2></div>`));
+  view.append(el(`<p class="lede">Play with the ideas: run the algorithms step by step, move the sliders, tap the plots. They also appear next to the matching slides.</p>`));
+  const vl = el(`<div class="lect-list"></div>`);
+  for (let lec = 0; lec <= 10; lec++) {
+    const ids = vizForLecture(lec);
+    if (!ids.length) continue;
+    const d = slideDeck(lec);
+    const b = el(`<button class="card lect">
+      <span class="num">L${lec}</span>
+      <span style="min-width:0"><div class="t">${esc(d ? d.title : "Lecture " + lec)}</div>
+        <div class="meta"><span>${ids.map(id => esc(window.VIZ[id].title)).join(" · ")}</span></div></span>
+      <span class="pct">${ids.length} ▶</span>
+    </button>`);
+    b.addEventListener("click", () => go({ name: "visuals", lecture: lec }));
+    vl.append(b);
+  }
+  view.append(vl);
+};
+
+function vizForLecture(lec) { return Object.keys(window.VIZ || {}).filter(id => window.VIZ[id].lecture === lec); }
+
+SCREENS.visuals = function (screen) {
+  const d = slideDeck(screen.lecture);
+  setTitle(`L${screen.lecture} · Visuals`);
+  view.append(el(`<div><div class="eyebrow">Lecture ${screen.lecture}${d ? " · " + esc(d.title) : ""}</div><h2 class="section">Interactive visuals</h2></div>`));
+  for (const id of vizForLecture(screen.lecture)) window.mountViz(id, view, false);
+  // Link back to the slides of this lecture
+  if (d) {
+    const b = el(`<button class="btn ghost">Open the slides of Lecture ${screen.lecture}</button>`);
+    b.addEventListener("click", () => go({ name: "deck", lecture: screen.lecture, i: 0 }));
+    view.append(b);
+  }
 };
 
 SCREENS.deck = function (screen) {
@@ -1035,6 +1071,10 @@ SCREENS.deck = function (screen) {
     </section>`);
     view.append(node);
   }
+
+  // Interactive visuals linked to this slide
+  const vids = ((window.SLIDE_VIZ || {})[d.lecture] || {})[n] || [];
+  vids.forEach(id => window.mountViz(id, view, true));
 
   // Related questions from the bank
   const qs = questionsForSlide(d.lecture, n);
