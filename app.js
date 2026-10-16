@@ -26,7 +26,7 @@ const COURSE = {
 // storage can be blocked (private mode, previews).
 // ---------------------------------------------------------------------
 const STORE_KEY = "study-" + COURSE.key;
-const DEFAULTS = { cards: {}, quizBest: {}, saved: {}, cover: false, theme: "auto", size: "m", level: "mixed", lastTab: "learn", lastLecture: null };
+const DEFAULTS = { cards: {}, quizBest: {}, saved: {}, time: {}, days: {}, cover: false, theme: "auto", size: "m", level: "mixed", lastTab: "learn", lastLecture: null };
 let progress = JSON.parse(JSON.stringify(DEFAULTS));
 try {
   const stored = JSON.parse(localStorage.getItem(STORE_KEY) || "null");
@@ -185,6 +185,7 @@ const ICON = {
   book: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 5a2 2 0 0 1 2-2h13v16H6a2 2 0 0 0-2 2z"/><path d="M4 19V5"/></svg>',
   slides: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="12" rx="1.5"/><path d="M12 16v4M8 20h8"/><path d="M7 8h6M7 11h9"/></svg>',
   play: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M10 8.5v7l6-3.5z"/></svg>',
+  clock: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg>',
   arrow: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 6l6 6-6 6"/></svg>'
 };
 
@@ -219,7 +220,78 @@ function switchTab(tab) {
   stack = [{ name: tab }];
   render();
 }
+// ---------------------------------------------------------------------
+// Study time. Every few seconds the time is added to the lecture and the
+// activity of the screen in use. It counts only while the app is visible
+// and you touched it in the last 2 minutes.
+// progress.time[key][activity] = seconds (key = L0…L10, BP, EX, BOARDS, GEN)
+// progress.days["YYYY-MM-DD"] = seconds
+// ---------------------------------------------------------------------
+const ACTIVITIES = [
+  ["learn", "Learn", "--c1"], ["slides", "Slides & visuals", "--c3"], ["cards", "Cards", "--c4"], ["quiz", "Quiz", "--c2"], ["exams", "Exams", "--muted"]
+];
+const IDLE_MS = 120000;
+let lastActive = Date.now(), lastTick = Date.now();
+["pointerdown", "keydown", "scroll", "touchstart", "input"].forEach(ev => window.addEventListener(ev, () => { lastActive = Date.now(); }, { passive: true, capture: true }));
+
+function dayKey(d) {
+  const t = d || new Date();
+  return `${t.getFullYear()}-${String(t.getMonth() + 1).padStart(2, "0")}-${String(t.getDate()).padStart(2, "0")}`;
+}
+// Which lecture and activity the current screen belongs to
+function timeContext() {
+  const sc = stack[stack.length - 1];
+  if (!sc || !data.lectures.length) return null;
+  const ofQuestion = q => (q && q.group && q.group.id ? q.group.id : "EX");
+  switch (sc.name) {
+    case "lecture": return [sc.id, "learn"];
+    case "question": { const q = data.byId[sc.id]; return q ? [ofQuestion(q), q.group.id ? "learn" : "exams"] : null; }
+    case "deck": return ["L" + sc.lecture, "slides"];
+    case "visuals": return ["L" + sc.lecture, "slides"];
+    case "cards": { if (!deck) return null; const q = data.byId[deck.queue[deck.index]]; return q ? [ofQuestion(q), "cards"] : null; }
+    case "quiz": return quiz && quiz.index < quiz.items.length ? ["L" + quiz.items[quiz.index].src.l, "quiz"] : null;
+    case "exams": case "exam": case "topic": return ["EX", "exams"];
+    case "boards": return ["BOARDS", "learn"];
+    default: return ["GEN", "learn"];
+  }
+}
+function tickTime() {
+  const now = Date.now();
+  const dt = Math.min(now - lastTick, 10000) / 1000;   // never more than 10 s at once (sleep, background)
+  lastTick = now;
+  if (document.hidden || now - lastActive > IDLE_MS || dt <= 0) return;
+  const c = timeContext();
+  if (!c) return;
+  const [key, act] = c;
+  progress.time = progress.time || {};
+  progress.days = progress.days || {};
+  progress.time[key] = progress.time[key] || {};
+  progress.time[key][act] = (progress.time[key][act] || 0) + dt;
+  const dk = dayKey();
+  progress.days[dk] = (progress.days[dk] || 0) + dt;
+  save();
+}
+setInterval(tickTime, 5000);
+document.addEventListener("visibilitychange", () => { if (document.hidden) tickTime(); else lastTick = Date.now(); });
+
+function timeOf(key) { const t = (progress.time || {})[key] || {}; return Object.values(t).reduce((a, v) => a + v, 0); }
+function totalTime() { return Object.keys(progress.time || {}).reduce((a, k) => a + timeOf(k), 0); }
+function daysTotal(n) {
+  let sum = 0;
+  for (let i = 0; i < n; i++) { const d = new Date(); d.setDate(d.getDate() - i); sum += (progress.days || {})[dayKey(d)] || 0; }
+  return sum;
+}
+// Compact form for big tiles: "45 min", "3 h 05"
+function fmtShort(sec) { const m = Math.round(sec / 60); return m < 60 ? m + " min" : Math.floor(m / 60) + " h " + String(m % 60).padStart(2, "0"); }
+function fmtDur(sec) {
+  const m = Math.round(sec / 60);
+  if (sec < 60) return sec < 5 ? "0 min" : "<1 min";
+  if (m < 60) return m + " min";
+  return Math.floor(m / 60) + " h " + String(m % 60).padStart(2, "0") + " min";
+}
+
 function render() {
+  tickTime(); // credit the time spent so far to the screen we are leaving
   const screen = stack[stack.length - 1];
   backBtn.hidden = stack.length <= 1;
   view.innerHTML = "";
@@ -333,6 +405,7 @@ SCREENS.learn = function () {
 
   // "Up next": the most useful things to do now
   const next = el(`<section class="stackgap"><div class="eyebrow">Up next</div></section>`);
+  next.append(actionRow(ICON.clock, `Study time today: ${fmtDur(daysTotal(1))}`, `Last 7 days ${fmtDur(daysTotal(7))} · total ${fmtDur(totalTime())}`, () => go({ name: "time" })));
   if (due > 0) {
     next.append(actionRow(ICON.cards, `Review ${due} card${due > 1 ? "s" : ""}`, "Spaced repetition: these are due now", () => { switchTab("cards"); startDeck("review"); }, "accent"));
   }
@@ -365,7 +438,7 @@ SCREENS.learn = function () {
       <span class="num">${lectureShort(l)}</span>
       <span style="min-width:0">
         <div class="t">${esc(l.title)}</div>
-        <div class="meta"><span class="tnum">${l.questions.length} Q</span>${nStar ? `<span class="star tnum">★ ${nStar}</span>` : ""}<span class="bar"><i style="width:${pct}%"></i></span></div>
+        <div class="meta"><span class="tnum">${l.questions.length} Q</span>${nStar ? `<span class="star tnum">★ ${nStar}</span>` : ""}${timeOf(l.id) >= 60 ? `<span class="tnum">⏱ ${fmtDur(timeOf(l.id))}</span>` : ""}<span class="bar"><i style="width:${pct}%"></i></span></div>
       </span>
       <span class="pct">${pct}%</span>
     </button>`);
@@ -395,7 +468,7 @@ SCREENS.lecture = function (screen) {
   const nBasic = l.id === "BP" ? 0 : quizPool(lectNum, "basic").length;
   const nHard = l.id === "BP" ? 0 : quizPool(lectNum, "hard").length;
 
-  view.append(el(`<div><div class="eyebrow">${l.id === "BP" ? "Lectures 1–10" : "Lecture " + l.num} · ${lectureProgress(l)}% known</div>
+  view.append(el(`<div><div class="eyebrow">${l.id === "BP" ? "Lectures 1–10" : "Lecture " + l.num} · ${lectureProgress(l)}% known · ⏱ ${fmtDur(timeOf(l.id))}</div>
     <h2 class="section">${esc(l.title)}</h2></div>`));
 
   // Quick actions for this lecture
@@ -480,6 +553,71 @@ SCREENS.question = function (screen) {
     ? (q.group.id === "BP" ? "Big picture" : "Lecture " + q.group.num + " – " + q.group.title)
     : q.group.letter + ". " + q.group.title;
   view.append(el(`<p class="muted small">From: ${esc(groupName)}</p>`));
+};
+
+
+// ---------------- Study time ----------------
+SCREENS.time = function () {
+  setTitle("Study time");
+  tickTime();
+  view.append(el(`<div><div class="eyebrow">On this device</div><h2 class="section">Where your time goes</h2></div>`));
+  view.append(el(`<div class="summary">
+    <div class="card stat"><b>${fmtShort(daysTotal(1))}</b><span>today</span></div>
+    <div class="card stat"><b>${fmtShort(daysTotal(7))}</b><span>last 7 days</span></div>
+    <div class="card stat"><b>${fmtShort(totalTime())}</b><span>total</span></div>
+  </div>`));
+
+  // Last 14 days
+  const days = [];
+  for (let i = 13; i >= 0; i--) { const d = new Date(); d.setDate(d.getDate() - i); days.push({ d, v: (progress.days || {})[dayKey(d)] || 0 }); }
+  const maxD = Math.max(60, ...days.map(x => x.v));
+  const streak = (() => { let n = 0; for (let i = days.length - 1; i >= 0 && days[i].v >= 60; i--) n++; return n; })();
+  const wk = ["Su", "Mo", "Tu", "We", "Th", "Fr", "Sa"];
+  const daysCard = el(`<section class="card pad stackgap">
+    <div class="row"><b class="grow">Last 14 days</b><span class="small muted">${streak ? `🔥 ${streak}-day streak` : "Study today to start a streak"}</span></div>
+    <div class="daybars" role="img" aria-label="Minutes studied per day, last 14 days">
+      ${days.map((x, i) => `<div class="daycol" title="${x.d.toLocaleDateString()}: ${fmtDur(x.v)}">
+        <span class="dv tnum">${x.v >= 60 && (x.v === Math.max(...days.map(y => y.v)) || i === 13) ? Math.round(x.v / 60) : ""}</span>
+        <i style="height:${Math.max(x.v > 0 ? 3 : 0, Math.round(100 * x.v / maxD))}%" class="${i === 13 ? "today" : ""}"></i>
+        <span class="dl">${i === 13 ? "today" : wk[x.d.getDay()]}</span></div>`).join("")}
+    </div>
+    <div class="small muted">Minutes per day. The number shows today and your best day.</div>
+  </section>`);
+  view.append(daysCard);
+
+  // Per lecture, stacked by activity
+  const rows = data.lectures.map(l => ({ key: l.id, label: l.id === "BP" ? "Big picture" : "L" + l.num + " · " + l.title, lecture: l }))
+    .concat([{ key: "L0", label: "L0 · Introduction (slides)" }, { key: "EX", label: "Past exams" }, { key: "BOARDS", label: "Blackboard" }]);
+  rows.sort((a, b) => {
+    const n = k => (k === "L0" ? 0 : /^L\d+$/.test(k) ? +k.slice(1) : k === "BP" ? 11 : k === "EX" ? 12 : 13);
+    return n(a.key) - n(b.key);
+  });
+  const maxL = Math.max(60, ...rows.map(r => timeOf(r.key)));
+  const box = el(`<section class="card pad stackgap">
+    <b>By lecture and activity</b>
+    <div class="viz-legend">${ACTIVITIES.map(([, name, col]) => `<span class="vleg"><i class="sw box" style="--sw: var(${col})"></i>${name}</span>`).join("")}</div>
+  </section>`);
+  for (const r of rows) {
+    const t = (progress.time || {})[r.key] || {};
+    const tot = timeOf(r.key);
+    const segs = ACTIVITIES.filter(([a]) => t[a] > 0).map(([a, name, col]) =>
+      `<i style="width:${100 * t[a] / maxL}%;background:var(${col})" title="${name}: ${fmtDur(t[a])}"></i>`).join("");
+    const detail = ACTIVITIES.filter(([a]) => t[a] >= 30).map(([a, name]) => `${name} ${fmtDur(t[a])}`).join(" · ");
+    const row = el(`<button class="trow">
+      <span class="row"><span class="grow tlabel">${esc(r.label)}</span><b class="tnum">${tot >= 5 ? fmtDur(tot) : "–"}</b></span>
+      <span class="tbar">${segs}</span>
+      ${detail ? `<span class="small muted">${detail}</span>` : ""}
+    </button>`);
+    row.addEventListener("click", () => {
+      if (r.lecture) go({ name: "lecture", id: r.key });
+      else if (r.key === "L0") go({ name: "deck", lecture: 0, i: 0 });
+      else if (r.key === "EX") switchTab("exams");
+      else switchTab("boards");
+    });
+    box.append(row);
+  }
+  view.append(box);
+  view.append(el(`<p class="small muted">Time counts only while the app is open and you are using it: it pauses after 2 minutes without touching the screen. Flashcards and quiz questions count for the lecture they belong to. It is saved on this device and travels with the progress code in Settings.</p>`));
 };
 
 // ---------------- Flashcards ----------------

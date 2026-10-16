@@ -392,6 +392,19 @@ details.formulas[open] > summary { margin-bottom: 6px; }
 .viz-look ul { margin: 6px 0 0; padding-left: 1.2em; font-size: 0.9rem; }
 .viz-look li { margin: 3px 0; }
 
+/* ---------- study time ---------- */
+.daybars { display: grid; grid-template-columns: repeat(14, 1fr); gap: 4px; height: 120px; align-items: end; }
+.daycol { display: flex; flex-direction: column; align-items: center; justify-content: flex-end; height: 100%; gap: 3px; min-width: 0; }
+.daycol i { display: block; width: 100%; max-width: 22px; background: var(--c1); border-radius: 4px 4px 0 0; opacity: 0.75; }
+.daycol i.today { opacity: 1; }
+.daycol .dv { font-size: 0.7rem; color: var(--ink); min-height: 1em; }
+.daycol .dl { font-size: 0.62rem; color: var(--muted); white-space: nowrap; }
+.trow { display: flex; flex-direction: column; gap: 5px; text-align: left; width: 100%; background: none; border: 0; border-top: 1px solid var(--line); padding: 10px 0 4px; color: var(--ink); }
+.trow .tlabel { font-size: 0.9rem; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.tbar { display: flex; gap: 2px; height: 10px; background: var(--code-bg); border-radius: 5px; overflow: hidden; }
+.tbar i { display: block; height: 100%; }
+.tbar i:last-child { border-radius: 0 4px 4px 0; }
+
 .empty { text-align: center; padding: 28px 16px; color: var(--muted); }
 .loading { padding: 40px 16px; text-align: center; color: var(--muted); }
 
