@@ -1046,13 +1046,8 @@ function slideNote(deck, n) {
   }
   return null;
 }
-// Slide numbers in the bank refer to the complete Lecture 4 PDF (28 slides):
-// slides 21–22 there are slides 20–21 of the "part 1" PDF used here.
-function bankToShownSlide(lecture, n) {
-  if (lecture === 4 && n >= 21) return n - 1;
-  if (lecture === 4 && n === 20) return null;
-  return n;
-}
+// Slide numbers in the bank match the slides shown (Lecture 4 is the complete 28-slide PDF).
+function bankToShownSlide(lecture, n) { return n; }
 // Map lecture -> slide -> [question ids], built from the "Source:" lines of the bank.
 let slideRefs = null;
 function buildSlideRefs() {

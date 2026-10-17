@@ -1843,7 +1843,7 @@
     1: { 8: ["hoeffding"], 9: ["hoeffding"], 10: ["hoeffding"], 13: ["hoeffding"], 14: ["multibin"], 15: ["multibin"] },
     2: { 5: ["ols"], 6: ["ols"], 7: ["ols"], 8: ["ols"], 9: ["bowl"], 10: ["bowl"], 12: ["ols", "bowl"], 13: ["bowl"] },
     3: { 3: ["pla"], 4: ["pla"], 5: ["pla"], 6: ["pla"], 7: ["pla"], 8: ["pla"], 9: ["pla"] },
-    4: { 4: ["sigmoid"], 5: ["sigmoid"], 6: ["sigmoid"], 7: ["sigmoid"], 10: ["errfun"], 11: ["sigmoid", "errfun"], 12: ["sigmoid"], 13: ["gd"], 14: ["gd"], 15: ["gd"], 16: ["gd"], 17: ["gd"], 18: ["gd"], 19: ["gd"], 20: ["gd"], 21: ["gd"] },
+    4: { 4: ["sigmoid"], 5: ["sigmoid"], 6: ["sigmoid"], 7: ["sigmoid"], 10: ["errfun"], 11: ["sigmoid", "errfun"], 12: ["sigmoid"], 13: ["gd"], 14: ["gd"], 15: ["gd"], 16: ["gd"], 17: ["gd"], 18: ["gd"], 19: ["gd"], 20: ["gd"], 21: ["gd"], 22: ["gd"], 23: ["gd"], 24: ["gd"], 25: ["gd"], 26: ["gd"], 27: ["gd"], 28: ["gd"] },
     5: { 1: ["biasvar"], 3: ["biasvar"], 4: ["biasvar"], 7: ["biasvar"], 8: ["biasvar"], 9: ["polyfit"], 10: ["curves"], 11: ["curves"] },
     6: { 1: ["polyfit"], 2: ["polyfit"], 4: ["polyfit"], 5: ["polyfit"], 6: ["polyfit"], 7: ["cv"], 8: ["cv"], 9: ["cv"], 10: ["cv"], 11: ["cv"], 12: ["cv"], 13: ["cv"], 14: ["cv", "polyfit"] },
     7: { 2: ["transform"], 3: ["transform"], 4: ["transform"], 7: ["nn"], 10: ["nn"], 11: ["nn"], 12: ["nn"], 13: ["nn"], 14: ["nn"], 15: ["nn"], 16: ["nn"] },

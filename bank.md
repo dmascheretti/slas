@@ -11,7 +11,7 @@ Prof. Simone Formentin – A.Y. 2026-2027. Lectures 1–10 and past exam questio
 - Study by covering the answer and replying out loud and in full. For derivations, write them on paper before reading.
 - When a new lecture arrives, copy the template at the bottom and keep the same numbering and Source style.
 
-**Slide numbering.** Lecture 4 numbers refer to the complete PDF (28 slides). In the "part 1" PDF, slide 7 has different content, and slides 20–21 there correspond to slides 21–22 here.
+**Slide numbering.** Lecture 4 numbers refer to the complete PDF (28 slides), the version shown in the app.
 
 **Lectures covered:** 1 – The feasibility of learning; 2 – Linear regression; 3 – Linear classification; 4 – Logistic regression and numerical optimization; 5 – The bias-variance trade-off; 6 – Model selection (regularization and cross-validation); 7 – Nonlinear modeling (feature transforms and neural networks); 8 – Nonparametric classification (k-NN and classifier quality); 9 – Clustering (k-means and hierarchical clustering); 10 – Data pre-processing (centering, normalization, whitening, cleaning, PCA).
 

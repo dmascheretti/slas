@@ -442,5 +442,28 @@ window.QUIZ = [
     e: "That's why the USArrests biplot shows −v₁, −v₂ compared with the table." },
   { l: 10, h: 1, ref: "L10.Q15", q: "With k of m components kept, the squared reconstruction error ‖X − ẐV_kᵀ‖² equals…",
     o: ["Σ_{i≤k} γᵢ²", "Σ_{i>k} γᵢ²", "γ_k²", "0"], a: 1,
-    e: "What is lost is exactly the variance along the discarded directions." }
+    e: "What is lost is exactly the variance along the discarded directions." },
+
+  // ---------- Lecture 4, complete version (slides 7 and 22–28) ----------
+  { l: 4, ref: "L4.Q7", q: "What is the main issue when fitting logistic regression (slide 7)?",
+    o: ["The data are not i.i.d.", "We never observe the true probability f(x), only the labels y = ±1", "The sigmoid is not differentiable", "There are too many parameters"], a: 1,
+    e: "So we cannot compare y with h(x) as in regression or classification: we need maximum likelihood instead." },
+  { l: 4, ref: "L4.Q24", q: "In the GD algorithm, at each iteration the direction is set to…",
+    o: ["v̂ = +∇E_in(w(k))", "v̂ = −∇E_in(w(k))", "a random direction", "the direction of the largest weight"], a: 1,
+    e: "Compute the gradient, set v̂ = −∇E_in, update w(k+1) = w(k) + ηv̂, iterate until a stopping criterion holds." },
+  { l: 4, ref: "L4.Q26", q: "The pointwise gradient used by SGD is…",
+    o: ["the average gradient over all N points", "the gradient of the error of one point: ∂err(y⁽ⁱ⁾, h(x⁽ⁱ⁾))/∂w", "the Hessian of E_in", "the gradient of E_out"], a: 1,
+    e: "The full gradient averages N of these; SGD uses one random point per step, so each step is N times cheaper." },
+  { l: 4, ref: "L4.Q32", q: "Quasi-Newton methods update w(k+1) = w(k) − M⁻¹∇E_in(w(k)), where M is…",
+    o: ["the identity", "an approximation of the Hessian", "the exact Hessian", "the covariance of the data"], a: 1,
+    e: "They keep most of Newton's speed without computing and inverting the exact Hessian." },
+  { l: 4, h: 1, ref: "L4.Q22", q: "With the heuristic η(k) = η‖∇E_in(w(k))‖, what happens to the actual step close to the minimum?",
+    o: ["It stays constant", "It shrinks automatically, because ‖∇E_in‖ → 0 near the minimum", "It grows, causing divergence", "It becomes random"], a: 1,
+    e: "The gradient norm measures how far w(k) is from the minimum: big steps far away, small steps near it. The update becomes w(k+1) = w(k) − η∇E_in." },
+  { l: 4, h: 1, ref: "L4.Q25", q: "Why is the stopping rule a threshold on ‖∇E_in‖ (e.g. 10⁻⁶) instead of ∇E_in = 0?",
+    o: ["Because the gradient is never computed", "Because numerically the gradient is never exactly zero: we stop when it is small enough", "Because E_in is not differentiable", "Because ∇E_in = 0 means divergence"], a: 1,
+    e: "In practice combine it with a maximum number of iterations and/or a threshold on E_in." },
+  { l: 4, h: 1, ref: "L4.Q32", q: "Unified view w(k+1) = w(k) − M⁻¹∇E_in: which M gives standard gradient descent with step η?",
+    o: ["M = Hessian", "M = I/η", "M = ηI²", "M = 0"], a: 1,
+    e: "M⁻¹ = ηI gives w − η∇E_in. Newton uses the exact Hessian, quasi-Newton an approximation of it, SGD uses one point's gradient."  }
 ];
