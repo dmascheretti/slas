@@ -1,4 +1,4 @@
-// Interactive visuals for SLAS (Lectures 0–10).
+// Interactive visuals for SLAS (Lectures 0–11).
 // Each visual is a small canvas "lab" with buttons and sliders.
 // window.VIZ[id] = { lecture, title, desc, look: [what to observe], build(root) }
 // window.SLIDE_VIZ[lecture][slide] = [ids] links visuals to the slides.
@@ -1835,6 +1835,190 @@
     }
   };
 
+  // ==================================================================
+  // L11 – Realizations, mean, variance, stationarity
+  // ==================================================================
+  VIZ.realizations = {
+    lecture: 11, title: "Realizations of a stochastic process",
+    desc: "Thin lines: some realizations x(s, t). Thick line: the mean m(t) over 400 realizations; band: m(t) ± 2·√γ(t, t). Right: the distribution of x(s, t̄) at the chosen time.",
+    look: ["Fix s: one thin line is a deterministic signal. Fix t (the vertical line): across realizations you get a random variable with its pdf (the histogram).",
+      "White noise and x = α are stationary: constant mean and constant variance band.",
+      "x = αt − t has constant mean 0 but a variance growing with t: not stationary. The random walk is not stationary either."],
+    build(root) {
+      const T = 61, R = 400;
+      let kind = "wn", paths = [], tbar = 40;
+      const tval = k => k / 20;      // time axis from 0 to 3
+      function make() {
+        paths = [];
+        for (let r = 0; r < R; r++) {
+          const p = [];
+          const a = 1 + Math.sqrt(3) * randn();
+          let w = 0;
+          for (let k = 0; k < T; k++) {
+            if (kind === "wn") p.push(randn());
+            else if (kind === "alpha") p.push(a);
+            else if (kind === "trend") p.push(a * tval(k) - tval(k));
+            else { w += 0.35 * randn(); p.push(w); }
+          }
+          paths.push(p);
+        }
+      }
+      make();
+      const stats = k => { const v = paths.map(p => p[k]); const m = v.reduce((a, x) => a + x, 0) / R; const s2 = v.reduce((a, x) => a + (x - m) ** 2, 0) / R; return [m, s2]; };
+      const s = stage(root, 0.66);
+      const ctl = controls(root);
+      seg(ctl, [["wn", "White noise"], ["alpha", "x = α"], ["trend", "x = αt − t"], ["walk", "Random walk"]], kind, v => { kind = v; make(); s.draw(); upd(); });
+      btn(ctl, "New realizations", () => { make(); s.draw(); upd(); }, true);
+      slider(ctl, "time t̄ (vertical line)", 0, T - 1, 1, tbar, v => "t̄ = " + tval(v).toFixed(2), v => { tbar = v; s.draw(); upd(); });
+      const ro = readout(root);
+      const theory = { wn: "WN(0, 1): m = 0, γ(0) = 1, γ(τ) = 0 for τ ≠ 0 ⇒ <b>stationary</b>.", alpha: "α ~ N(1, 3): m = 1, γ(τ) = 3 for every τ ⇒ <b>stationary</b> (each realization is flat).", trend: "m(t) = 0 but γ(t₁, t₂) = 3t₁t₂ ⇒ <b>not stationary</b> (variance 3t² grows).", walk: "x(t) = x(t−1) + noise: m = 0 but the variance grows linearly with t ⇒ <b>not stationary</b>." };
+      function upd() {
+        const [m, v] = stats(tbar);
+        ro.set(`At t̄ = ${tval(tbar).toFixed(2)}: estimated m(t̄) = <b class="tnum">${fmt(m)}</b>, variance γ(t̄, t̄) = <b class="tnum">${fmt(v)}</b> (over ${R} realizations)<br>${theory[kind]}`);
+      }
+      legend(root, [["--muted", "realizations (fix s)"], ["--c2", "mean m(t)"], ["--c1", "m(t) ± 2√γ(t,t)", "box"]]);
+      s.draw = function () {
+        const p = P(); s.clear();
+        const lim = kind === "alpha" ? [-5, 7] : kind === "trend" ? [-12, 12] : [-4, 4];
+        const W = s.W, histW = Math.min(90, W * 0.22);
+        const f = frame(s, [0, 3], lim, { pad: { r: 12 + histW } });
+        axes(s, f, { xl: "t", yl: "x(s, t)", nx: 3, ny: 4 });
+        clip(s, f);
+        const c = s.ctx;
+        // ±2σ band
+        const st = Array.from({ length: T }, (_, k) => stats(k));
+        c.fillStyle = alpha(p.c1, 0.14);
+        c.beginPath();
+        st.forEach(([m, v], k) => { const y = f.Y(m + 2 * Math.sqrt(v)); k ? c.lineTo(f.X(tval(k)), y) : c.moveTo(f.X(tval(k)), y); });
+        for (let k = T - 1; k >= 0; k--) c.lineTo(f.X(tval(k)), f.Y(st[k][0] - 2 * Math.sqrt(st[k][1])));
+        c.closePath(); c.fill();
+        // a few realizations
+        for (let r = 0; r < 8; r++) {
+          c.strokeStyle = alpha(p.muted.startsWith("#") ? p.muted : "#888888", 0.65); c.lineWidth = 1.2;
+          c.beginPath(); paths[r].forEach((x, k) => (k ? c.lineTo(f.X(tval(k)), f.Y(x)) : c.moveTo(f.X(tval(k)), f.Y(x)))); c.stroke();
+        }
+        c.strokeStyle = p.c2; c.lineWidth = 3;
+        c.beginPath(); st.forEach(([m], k) => (k ? c.lineTo(f.X(tval(k)), f.Y(m)) : c.moveTo(f.X(tval(k)), f.Y(m)))); c.stroke();
+        c.strokeStyle = p.ink; c.lineWidth = 1.5; c.setLineDash([4, 4]);
+        c.beginPath(); c.moveTo(f.X(tval(tbar)), f.pad.t); c.lineTo(f.X(tval(tbar)), f.pad.t + f.ph); c.stroke(); c.setLineDash([]);
+        c.restore();
+        // sideways histogram of x(s, t̄)
+        const bins = 24, cnt = new Array(bins).fill(0);
+        paths.forEach(pp => { const i = Math.floor((pp[tbar] - lim[0]) / (lim[1] - lim[0]) * bins); if (i >= 0 && i < bins) cnt[i]++; });
+        const mx = Math.max(1, ...cnt);
+        const x0 = f.pad.l + f.pw + 8, bh = f.ph / bins;
+        cnt.forEach((n, i) => {
+          if (!n) return;
+          const y = f.Y(lim[0] + (i + 1) * (lim[1] - lim[0]) / bins);
+          c.fillStyle = p.c4;
+          c.fillRect(x0, y + 1, (histW - 12) * n / mx, Math.max(1, bh - 2));
+        });
+        label(s, "pdf at t̄", x0, f.pad.t + 6, p.c4, "left", "middle", true);
+      };
+      upd();
+    }
+  };
+
+  // ==================================================================
+  // L11 – Covariance function and spectral density
+  // ==================================================================
+  VIZ.spectrum = {
+    lecture: 11, title: "Covariance ↔ spectral density",
+    desc: "White noise e ~ WN(0, λ²) filtered in two simple ways. Top: one realization. Middle: γ(τ) (stems) and its estimate from a long realization (dots). Bottom: Γ(ω) with the area that gives the variance.",
+    look: ["With a = 0 (or c = 0) the process is white noise: γ(τ) is a single spike and Γ(ω) is flat.",
+      "Positive a or c: neighbouring samples are correlated, the realization is smoother, Γ(ω) concentrates at low frequencies. Negative: it oscillates, high frequencies dominate.",
+      "Always: γ(τ) is even with its maximum at 0; Γ(ω) is real, ≥ 0, even. And γ(0) = (1/2π)·area under Γ (the readout checks it numerically).",
+      "The AR model x(t) = a·x(t−1) + e(t) is a preview of Module 2; the MA one is the practice example L11.Q18."],
+    build(root) {
+      let model = "ar", a = 0.7, lam2 = 1, real = [], est = [];
+      const gamma = tau => {
+        tau = Math.abs(tau);
+        if (model === "ar") return lam2 * Math.pow(a, tau) / (1 - a * a);
+        return tau === 0 ? lam2 * (1 + a * a) : tau === 1 ? lam2 * a : 0;
+      };
+      const Gam = w => (model === "ar" ? lam2 / (1 - 2 * a * Math.cos(w) + a * a) : lam2 * (1 + a * a + 2 * a * Math.cos(w)));
+      function simulate() {
+        const N = 3000, sd = Math.sqrt(lam2);
+        let prev = 0, ePrev = randn() * sd;
+        const x = [];
+        for (let t = -200; t < N; t++) {
+          const e = randn() * sd;
+          const v = model === "ar" ? a * prev + e : e + a * ePrev;
+          prev = v; ePrev = e;
+          if (t >= 0) x.push(v);
+        }
+        real = x;
+        const m = x.reduce((s0, v) => s0 + v, 0) / N;
+        est = [];
+        for (let tau = 0; tau <= 10; tau++) { let s0 = 0; for (let t = 0; t < N - tau; t++) s0 += (x[t] - m) * (x[t + tau] - m); est.push(s0 / N); }
+      }
+      simulate();
+      const s1 = stage(root, 0.32), s2 = stage(root, 0.36), s3 = stage(root, 0.42);
+      const ctl = controls(root);
+      seg(ctl, [["ar", "x(t) = a·x(t−1) + e(t)"], ["ma", "x(t) = e(t) + c·e(t−1)"]], model, v => { model = v; simulate(); drawAll(); });
+      btn(ctl, "New realization", () => { simulate(); drawAll(); }, true);
+      const sa = slider(ctl, "a / c (filter coefficient)", -0.9, 0.9, 0.05, a, v => v.toFixed(2) + (Math.abs(v) < 0.001 ? "  (white noise)" : ""), v => { a = v; simulate(); drawAll(); });
+      slider(ctl, "λ² (noise variance)", 0.25, 2, 0.05, lam2, v => v.toFixed(2), v => { lam2 = v; simulate(); drawAll(); });
+      const ro = readout(root);
+      function drawAll() { s1.draw(); s2.draw(); s3.draw(); upd(); }
+      function upd() {
+        let area = 0; const n = 2000;
+        for (let i = 0; i < n; i++) { const w = -Math.PI + (i + 0.5) * 2 * Math.PI / n; area += Gam(w) * 2 * Math.PI / n; }
+        ro.set(`γ(0) = variance = <b class="tnum">${fmt(gamma(0), 3)}</b> &nbsp;·&nbsp; (1/2π)·area under Γ = <b class="tnum">${fmt(area / (2 * Math.PI), 3)}</b> ✓<br>estimated from the realization: γ̂(0) = ${fmt(est[0], 3)}, γ̂(1) = ${fmt(est[1], 3)} (true ${fmt(gamma(1), 3)})`);
+      }
+      s1.draw = function () {
+        const p = P(); s1.clear();
+        const show = real.slice(0, 150);
+        const lim = Math.max(2.5, 3 * Math.sqrt(gamma(0)));
+        const f = frame(s1, [0, 150], [-lim, lim], { pad: { t: 8, b: 22 } });
+        axes(s1, f, { xl: "t", ny: 2, nx: 3 });
+        clip(s1, f);
+        const c = s1.ctx;
+        c.strokeStyle = p.c1; c.lineWidth = 1.3;
+        c.beginPath(); show.forEach((v, t) => (t ? c.lineTo(f.X(t), f.Y(v)) : c.moveTo(f.X(t), f.Y(v)))); c.stroke();
+        c.restore();
+        label(s1, "one realization x(t)", f.pad.l + 6, f.pad.t + 8, p.c1, "left", "middle", true);
+      };
+      s2.draw = function () {
+        const p = P(); s2.clear();
+        const g0 = gamma(0);
+        const f = frame(s2, [-10.5, 10.5], [-1.15 * g0, 1.15 * g0], { pad: { t: 8, b: 22 } });
+        axes(s2, f, { xl: "τ (lag)", ny: 2, xticks: [-10, -5, 0, 5, 10] });
+        clip(s2, f);
+        const c = s2.ctx;
+        for (let tau = -10; tau <= 10; tau++) {
+          const g = gamma(tau);
+          c.strokeStyle = p.c1; c.lineWidth = 2;
+          c.beginPath(); c.moveTo(f.X(tau), f.Y(0)); c.lineTo(f.X(tau), f.Y(g)); c.stroke();
+          c.fillStyle = p.c1; c.beginPath(); c.arc(f.X(tau), f.Y(g), 3.5, 0, 7); c.fill();
+          const e = est[Math.abs(tau)];
+          c.strokeStyle = p.c2; c.lineWidth = 2; c.beginPath(); c.arc(f.X(tau), f.Y(e), 5, 0, 7); c.stroke();
+        }
+        c.strokeStyle = p.muted; c.setLineDash([3, 3]); c.lineWidth = 1;
+        [g0, -g0].forEach(v => { c.beginPath(); c.moveTo(f.pad.l, f.Y(v)); c.lineTo(f.pad.l + f.pw, f.Y(v)); c.stroke(); });
+        c.setLineDash([]);
+        c.restore();
+        label(s2, "γ(τ)  ○ estimate", f.pad.l + 6, f.pad.t + 8, p.c1, "left", "middle", true);
+      };
+      s3.draw = function () {
+        const p = P(); s3.clear();
+        let gmax = 0; for (let i = 0; i <= 100; i++) gmax = Math.max(gmax, Gam(-Math.PI + 2 * Math.PI * i / 100));
+        const f = frame(s3, [-Math.PI, Math.PI], [0, gmax * 1.15], { pad: { t: 8, b: 22 } });
+        axes(s3, f, { xl: "ω", ny: 2, xticks: [-Math.PI, -Math.PI / 2, 0, Math.PI / 2, Math.PI], xfmt: v => ({ "-3.142": "−π", "-1.571": "−π/2", "0.000": "0", "1.571": "π/2", "3.142": "π" })[v.toFixed(3)] || v.toFixed(1) });
+        clip(s3, f);
+        const c = s3.ctx;
+        c.fillStyle = alpha(p.c3, 0.22);
+        c.beginPath(); c.moveTo(f.X(-Math.PI), f.Y(0));
+        for (let i = 0; i <= 200; i++) { const w = -Math.PI + 2 * Math.PI * i / 200; c.lineTo(f.X(w), f.Y(Gam(w))); }
+        c.lineTo(f.X(Math.PI), f.Y(0)); c.closePath(); c.fill();
+        curve(s3, f, Gam, p.c3, 2.5);
+        c.restore();
+        label(s3, "Γ(ω): area/2π = variance", f.pad.l + 6, f.pad.t + 8, p.c3, "left", "middle", true);
+      };
+      upd();
+    }
+  };
+
   // ------------------------------------------------------------------
   // Which visuals go with which slides
   // ------------------------------------------------------------------
@@ -1849,7 +2033,8 @@
     7: { 2: ["transform"], 3: ["transform"], 4: ["transform"], 7: ["nn"], 10: ["nn"], 11: ["nn"], 12: ["nn"], 13: ["nn"], 14: ["nn"], 15: ["nn"], 16: ["nn"] },
     8: { 1: ["knn"], 3: ["knn"], 5: ["knn"], 6: ["knn"], 7: ["knn"], 8: ["knn"], 9: ["knn"], 10: ["threshold"], 11: ["threshold"], 12: ["threshold"] },
     9: { 2: ["supunsup"], 4: ["kmeans"], 5: ["kmeans"], 6: ["kmeans"], 7: ["kmeans"], 8: ["kmeans"], 9: ["dendro"] },
-    10: { 4: ["preprocess"], 5: ["preprocess"], 6: ["preprocess"], 7: ["ols"], 9: ["pca"], 10: ["pca"], 11: ["pca"], 12: ["pca"], 15: ["pca"] }
+    10: { 4: ["preprocess"], 5: ["preprocess"], 6: ["preprocess"], 7: ["ols"], 9: ["pca"], 10: ["pca"], 11: ["pca"], 12: ["pca"], 15: ["pca"] },
+    11: { 1: ["realizations"], 3: ["realizations"], 4: ["realizations"], 5: ["realizations"], 6: ["realizations"], 7: ["realizations"], 8: ["realizations"], 9: ["realizations"], 10: ["spectrum"], 11: ["realizations"], 12: ["realizations"], 13: ["realizations"], 14: ["realizations"], 15: ["spectrum"], 17: ["spectrum"], 18: ["spectrum"], 19: ["spectrum"], 20: ["spectrum"], 21: ["spectrum"], 22: ["spectrum"], 23: ["spectrum"] }
   };
 
   // Mount a visual inside a container: title, description, canvas, controls, "what to look at".

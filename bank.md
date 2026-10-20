@@ -13,7 +13,7 @@ Prof. Simone Formentin – A.Y. 2026-2027. Lectures 1–10 and past exam questio
 
 **Slide numbering.** Lecture 4 numbers refer to the complete PDF (28 slides), the version shown in the app.
 
-**Lectures covered:** 1 – The feasibility of learning; 2 – Linear regression; 3 – Linear classification; 4 – Logistic regression and numerical optimization; 5 – The bias-variance trade-off; 6 – Model selection (regularization and cross-validation); 7 – Nonlinear modeling (feature transforms and neural networks); 8 – Nonparametric classification (k-NN and classifier quality); 9 – Clustering (k-means and hierarchical clustering); 10 – Data pre-processing (centering, normalization, whitening, cleaning, PCA).
+**Lectures covered:** 1 – The feasibility of learning; 2 – Linear regression; 3 – Linear classification; 4 – Logistic regression and numerical optimization; 5 – The bias-variance trade-off; 6 – Model selection (regularization and cross-validation); 7 – Nonlinear modeling (feature transforms and neural networks); 8 – Nonparametric classification (k-NN and classifier quality); 9 – Clustering (k-means and hierarchical clustering); 10 – Data pre-processing (centering, normalization, whitening, cleaning, PCA); 11 – Stochastic processes (mean, covariance, stationarity, white noise, spectral density).
 
 ---
 
@@ -159,6 +159,20 @@ PCA: max_{‖v‖=1} Var[vᵀx] = vᵀAv
 limits: unsupervised (ignores y), linear, needs scaling, sensitive to outliers
 ```
 
+## Board 11 – Stochastic processes
+
+```text
+SP x(s,t): fix s → realization (deterministic signal);  fix t → random variable
+wide sense: m(t) = E_s[x(s,t)],  γ(t1,t2) = E[(x(t1) − m(t1))(x(t2) − m(t2))],  γ(t,t) = variance
+STATIONARY (SSP): m(t) = m ∀t  and  γ(t1,t2) = γ(τ), τ = t2 − t1
+γ(τ): γ(0) ≥ 0,  |γ(τ)| ≤ γ(0),  γ(τ) = γ(−τ)
+(D) x = α, α ~ N(1,3): m = 1, γ(τ) = 3 ⇒ SSP     x = αt − t: m = 0, γ = 3·t1·t2 ⇒ NOT SSP
+WN(μ, λ²): mean μ, variance λ², γ(τ) = 0 ∀τ ≠ 0
+Γ(ω) = Σ_{τ=−∞}^{+∞} γ(τ)e^(−jωτ):  real, ≥ 0, even, periodic 2π
+(D) WN: Γ(ω) = γ(0) = λ² (flat: all frequencies equally present)
+γ(τ) = (1/2π)∫_{−π}^{π} Γ(ω)e^(jωτ)dω  ⇒  γ(0) = variance = (1/2π)·area under Γ on [−π, π]
+SSP described by (m, γ(τ)) in time  or  (m, Γ(ω)) in frequency
+```
 ---
 
 # Part I – Questions from the slides
@@ -1559,6 +1573,161 @@ States with **large positive scores on the 1st component** (California, Nevada, 
 
 ---
 
+## Lecture 11 – Stochastic processes
+
+### Key formulas
+- A stochastic process (SP) x(s, t): s = outcome of the random experiment, t = time (integer). Fix s: one **realization**, a deterministic signal. Fix t: a **random variable**
+- ★ Mean function: **m(t) = 𝔼_s[x(s, t)]**
+- ★ Covariance function: **γ(t₁, t₂) = 𝔼_s[(x(s, t₁) − m(t₁))(x(s, t₂) − m(t₂))]**; γ(t, t) = variance at time t
+- ★ (Wide-sense) stationary SP (SSP): **m(t) = m ∀t** and **γ(t₁, t₂) depends only on τ = t₂ − t₁**: γ(τ) = 𝔼[(x(t) − m)(x(t − τ) − m)]
+- ★ Properties of γ(τ): **γ(0) ≥ 0**, **|γ(τ)| ≤ γ(0)**, **γ(τ) = γ(−τ)**
+- ★ White noise e ~ WN(μ, λ²): 𝔼[e(t)] = μ, Var = λ², **γ(τ) = 0 ∀τ ≠ 0**
+- ★ Spectral density: **Γ(ω) = Σ_{τ=−∞}^{+∞} γ(τ) e^(−jωτ)**; properties: real, Γ(ω) ≥ 0, Γ(ω) = Γ(−ω), periodic of period 2π
+- ★ Inverse transform: **γ(τ) = (1/2π) ∫_{−π}^{π} Γ(ω) e^(jωτ) dω** ⇒ **γ(0) = Var = (1/2π) ∫_{−π}^{π} Γ(ω) dω**
+- ★ White noise spectrum: **Γ(ω) = λ²** (flat)
+
+### L11.Q1 – Why do we need stochastic processes in systems and control?
+*Source: Lecture 11, slide 2*
+
+So far the model was a **static map** y = f(x): the output depends only on the current input. In systems and control the output y_t also depends on **past values** of x and y, e.g. y_t = f(y_{t−1}, y_{t−2}, …, x_t, x_{t−1}, …, x_{t−m}). We must take the **time variable** into account, and the data are signals affected by randomness: the right mathematical object is a stochastic process.
+
+### L11.Q2 – Define a stochastic process. What is a realization?
+*Source: Lecture 11, slides 1 and 3*
+
+A stochastic process is an **infinite sequence of random variables, all defined on the same probabilistic space**: x(s, t), with s the outcome of the random experiment and t the (discrete) time. Running the experiment once gives one **realization**: a whole signal in time. Different outcomes s give different realizations of the **same** process (the coloured curves on the slides).
+
+### L11.Q3 – What do you obtain by fixing s, and by fixing t? ★
+*Source: Lecture 11, slide 4*
+
+- **Fix s = s̄**: x(s̄, t) = x(t) is a **deterministic signal** (one realization).
+- **Fix t = t̄**: x(s, t̄) is a **random variable** (a scalar) with its own pdf (the orange curve on the slide).
+
+So a SP is a signal in t for every s, and a random variable for every t.
+
+### L11.Q4 – Why do we use a “wide-sense” characterization?
+*Source: Lecture 11, slide 5*
+
+To fully characterize a SP we would need the **pdf at every time and its joint evolution in time**: too complex for learning. In the **wide-sense** characterization we describe x(s, t) only through its **mean** and its **covariance function**, i.e. first- and second-order moments.
+
+### L11.Q5 – Define the mean function of a SP.
+*Source: Lecture 11, slide 6*
+
+**m(t) = 𝔼_s[x(s, t)]**: at each time t, the average over all realizations (the expectation is over s, not over time). In general it changes with t: the red curve running through the green realizations on the slide.
+
+### L11.Q6 – Define the covariance function. What does it measure? ★
+*Source: Lecture 11, slide 7*
+
+**γ(t₁, t₂) = 𝔼_s[(x(s, t₁) − m(t₁))(x(s, t₂) − m(t₂))]**.
+- For t₁ ≠ t₂ it quantifies **how much x(t₁) and x(t₂) are correlated**: large |γ| means knowing the process at t₁ tells a lot about t₂.
+- For t₁ = t₂ = t: γ(t, t) = 𝔼[(x(t) − m(t))²] is the **variance** of the SP at time t.
+
+### L11.Q7 – When is a stochastic process stationary (in the wide sense)? ★
+*Source: Lecture 11, slides 8–9*
+
+A SP is **stationary (SSP)** if:
+1. **m(t) = m for all t** (constant mean);
+2. **γ(t₁, t₂) depends only on τ = t₂ − t₁**: γ(t₁, t₂) = γ(τ).
+
+Then γ(0) = 𝔼[(x(t) − m)²] is the (constant) variance and γ(τ) = 𝔼[(x(t) − m)(x(t − τ) − m)] the covariance at lag τ. Stationary processes are a **small subset** of all SPs, but very important in systems and control: their statistics do not change with time.
+
+### L11.Q8 – State the properties of γ(τ) for a SSP and explain them. ★
+*Source: Lecture 11, slide 10*
+
+- **P1 Non-negativity**: γ(0) = 𝔼[(x(t) − m)²] ≥ 0 (it is a variance).
+- **P2 Variance prevalence**: |γ(τ)| ≤ γ(0) for all τ (extra: Cauchy–Schwarz, |𝔼[XY]| ≤ √(𝔼[X²]𝔼[Y²]) = γ(0) with X = x(t) − m, Y = x(t − τ) − m).
+- **P3 Symmetry**: γ(τ) = γ(−τ), an **even** function (swap t and t − τ; by stationarity only the distance counts).
+
+Graphically: the maximum of |γ| is at τ = 0, the function is mirrored around τ = 0 and lives in the band [−γ(0), γ(0)].
+
+### L11.Q9 – (Example) x(s, t) = α(s) for all t, α ~ N(1, 3). Is it stationary? ★
+*Source: Lecture 11, slides 11–12*
+
+Check the two conditions.
+1. m(t) = 𝔼[α] = **1** for all t ✓.
+2. γ(t₁, t₂) = 𝔼[(α − 1)(α − 1)] = 𝔼[(α − 1)²] = Var(α) = **3** for all t₁, t₂ ⇒ γ(τ) = 3 ✓.
+
+**The process is stationary.** Each realization is a constant line at the random value α(s). Extra: knowing x at one time tells you x at every time, so γ(τ) = γ(0) for all τ (maximal correlation, never decays). Note also that one single realization does not reveal m = 1 (its time average is α(s)): the process is stationary but not *ergodic*.
+
+### L11.Q10 – (Example) x(s, t) = α(s)·t − t, α ~ N(1, 3). Is it stationary? ★
+*Source: Lecture 11, slides 13–14*
+
+1. m(t) = 𝔼[αt − t] = t·𝔼[α] − t = t − t = **0** for all t ✓.
+2. With m = 0: γ(t₁, t₂) = 𝔼[x(t₁)x(t₂)] = 𝔼[(α − 1)t₁ · (α − 1)t₂] = t₁t₂·𝔼[(α − 1)²] = **3·t₁·t₂** ✗: it depends on t₁ and t₂, not only on τ.
+
+**Not stationary.** Picture: x = t(α − 1) are lines through the origin with random slope (up if α > 1, down if α < 1): the spread grows with |t| (variance 3t²), although the mean is always 0. A constant mean is not enough.
+
+### L11.Q11 – Define white noise. ★
+*Source: Lecture 11, slide 15*
+
+A SSP e(s, t) is a **white noise**, written **e ~ WN(μ, λ²)**, if:
+- 𝔼[e(t)] = μ;
+- 𝔼[(e(t) − μ)²] = λ² (variance);
+- **γ_e(τ) = 𝔼[(e(t) − μ)(e(t − τ) − μ)] = 0 for all τ ≠ 0**: values at different times are uncorrelated.
+
+Its covariance function is a single spike λ² at τ = 0. White noise is the basic building block: other SSPs are obtained by filtering it.
+
+### L11.Q12 – Why a frequency-domain description? Why not the Fourier transform of a realization?
+*Source: Lecture 11, slides 16–17*
+
+For deterministic signals the frequency domain is natural: a periodic signal has a Fourier series (lines), a non-periodic one a Fourier transform. For a SP each realization is different, so **transforming one single realization is meaningless**: it describes that outcome, not the process. We need a frequency description of the **process**: transform its covariance function, which is the same for all realizations.
+
+### L11.Q13 – Define the spectral density of a SSP. ★
+*Source: Lecture 11, slide 18*
+
+The spectral density (or spectrum) is the Fourier transform of the covariance function:
+
+**Γ(ω) = Σ_{τ=−∞}^{+∞} γ(τ) e^(−jωτ)**.
+
+It tells how the variance of the process is distributed over frequencies. A γ(τ) that decays slowly (strong correlation between nearby samples) gives a spectrum concentrated at low frequencies.
+
+### L11.Q14 – (Derivation) Compute the spectrum of a white noise. ★
+*Source: Lecture 11, slide 19*
+
+e ~ WN(0, λ²): γ_e(0) = λ² and γ_e(τ) = 0 for τ ≠ 0. Then
+
+Γ_e(ω) = Σ γ_e(τ)e^(−jωτ) = γ_e(0)·e^(−jω·0) + 0 + 0 + … = **λ²** for all ω.
+
+The spectrum of a WN is **flat**: all frequencies are equally present in one WN realization (the reason for the name “white”, like white light).
+
+### L11.Q15 – List the properties of Γ(ω). ★
+*Source: Lecture 11, slide 20*
+
+- **P1 Realness**: Im(Γ(ω)) = 0 ∀ω (because γ is real and even, the imaginary parts of the τ and −τ terms cancel).
+- **P2 Non-negativity**: Γ(ω) ≥ 0 ∀ω.
+- **P3 Symmetry**: Γ(ω) = Γ(−ω) (even function).
+- **P4 Periodicity** of period 2π: Γ(ω) = Γ(ω + 2πk), k ∈ ℤ (τ is an integer, so e^(−j(ω+2πk)τ) = e^(−jωτ)).
+
+Because of P3 and P4 it is enough to draw Γ on [0, π].
+
+### L11.Q16 – Write the inverse transform. How do you get the variance from the plot of Γ(ω)? ★
+*Source: Lecture 11, slides 21–22; exam 3 Jul 2023, Ex. 4a*
+
+**γ(τ) = (1/2π) ∫_{−π}^{π} Γ(ω) e^(jωτ) dω**. At τ = 0, e^0 = 1:
+
+**γ(0) = Var[x(t)] = (1/2π) ∫_{−π}^{π} Γ(ω) dω**: the variance is the **area under the graph of Γ on [−π, π], divided by 2π**.
+
+Check on WN: area = λ²·2π ⇒ γ(0) = λ²·2π/2π = λ² ✓.
+
+### L11.Q17 – In which ways can a SSP be represented?
+*Source: Lecture 11, slide 23*
+
+1. **Mean m and covariance function γ(τ)**: time-domain description.
+2. **Mean m and spectral density Γ(ω)**: frequency-domain description.
+
+They carry the same information, since γ and Γ are a Fourier-transform pair.
+
+### L11.Q18 – (Extra) Practice: x(t) = e(t) + c·e(t − 1), e ~ WN(0, λ²). Compute m, γ(τ), Γ(ω).
+*Source: Lecture 11, slides 8–22 (extra, practice on paper)*
+
+- m = 𝔼[e(t)] + c·𝔼[e(t − 1)] = **0**.
+- γ(0) = 𝔼[(e(t) + c e(t−1))²] = λ² + c²λ² = **(1 + c²)λ²** (cross terms vanish: WN is uncorrelated).
+- γ(±1) = 𝔼[(e(t) + c e(t−1))(e(t−1) + c e(t−2))] = **cλ²**; γ(τ) = 0 for |τ| ≥ 2. It depends only on τ ⇒ stationary.
+- Γ(ω) = γ(0) + γ(1)(e^(−jω) + e^(jω)) = **λ²(1 + c² + 2c·cos ω)**.
+
+Check the properties: real ✓, even ✓, 2π-periodic ✓, ≥ 0 since 1 + c² + 2c cos ω ≥ (1 − |c|)² ≥ 0 ✓. With c > 0 the spectrum is larger at low frequencies (smoother realizations); with c < 0 at high frequencies.
+
+---
+
 ## Big picture (Lectures 1–10)
 
 ### BP.Q1 – What is the real goal of the course?
@@ -2104,11 +2273,36 @@ Take the first two columns of V (the loadings of PC1 and PC2), V₂ ∈ ℝ^{4×
 
 ---
 
+## L. Stochastic processes
+
+### EX.L1 – Spectral density: definition, properties, variance from its plot; estimation from data.
+*Exam: 3 Jul 2023, Ex. 4. Theory: Lecture 11, slides 18–22*
+
+(a) For a stationary SP, **Γ(ω) = Σ_{τ=−∞}^{+∞} γ(τ)e^(−jωτ)**. Properties: real, Γ(ω) ≥ 0, even (Γ(ω) = Γ(−ω)), periodic with period 2π. Variance from the plot: by the inverse transform at τ = 0, **γ(0) = (1/2π)∫_{−π}^{π}Γ(ω)dω**, so measure the area under Γ on [−π, π] and divide by 2π (by symmetry: twice the area on [0, π], divided by 2π). Example: white noise, Γ = λ² ⇒ γ(0) = λ².
+(b)–(c) *Estimation from data is treated after Lecture 11 (official solution: “lecture notes, chapter 15”).* From one realization of length N one can compute the sample covariance γ̂(τ) and its transform, or the **periodogram** Γ̂(ω) = (1/N)|Σ_t x(t)e^(−jωt)|². It is asymptotically unbiased but **not a consistent estimator**: its variance does not go to 0 as N grows, so the plot stays noisy. With a large dataset, reduce the variance by **averaging**: split the data into sub-batches, compute a periodogram on each and average them (Bartlett/Welch), or smooth the spectrum (windowing γ̂(τ)). The price is a lower frequency resolution.
+
+### EX.L2 – Output of a stable filter: sample mean, covariance, spectrum; consistency; linear trend.
+*Exam: 13 Feb 2025, Ex. 4. Theory: Lecture 11, slides 6–10 and 18; Lecture 2 (OLS) for the trend*
+
+y_t = H(q)w_t with w ~ WN(0, 1) and H stable is a stationary process. *The estimators go slightly beyond Lecture 11.*
+1. **Sample estimators**: μ̂ = (1/N)Σ y_t; γ̂(τ) = (1/N)Σ_{t=1}^{N−τ}(y_t − μ̂)(y_{t+τ} − μ̂); periodogram Γ̂(ω) = (1/N)|Σ_t y_t e^(−jωt)|², ω ∈ [−π, π].
+2. **Consistency** (N → ∞): μ̂ is consistent; γ̂(τ) is asymptotically consistent but gets worse for large τ (few products to average); the periodogram is **not consistent** (high variance), improved by smoothing/averaging.
+3. **Linear trend**: y_t = α + βt + ỹ_t is **not stationary** (the mean changes with t). Estimate α, β by **OLS** on (t, y_t) (EX.B7), subtract the trend ỹ_t = y_t − (α̂ + β̂t), then compute μ̂, γ̂, Γ̂ on ỹ_t.
+
+### EX.L3 – Temperature as a stationary process: estimators, PSD estimation, trends and seasonality (true/false).
+*Exam: 21 Jan 2026, Ex. 4. Theory: Lecture 11, slides 6–10, 18–23*
+
+(a) μ̂ = (1/N)Σ x(t); γ̂(τ) = (1/N)Σ_{t=1}^{N−|τ|}(x(t) − μ̂)(x(t + |τ|) − μ̂), |τ| < N (1/(N − |τ|) is also used). Consistent if the process is stationary and γ(τ) → 0 as |τ| → ∞.
+(b) Two ways: transform the estimated covariance, Γ̂(ω) = Σ_{|τ|<N} γ̂(τ)e^(−jωτ); or the periodogram Γ̂(ω) = (1/N)|X_N(ω)|² with X_N(ω) = Σ x(t)e^(−jωt). Theory: **Γ(ω) = Σ γ(τ)e^(−jωτ)**, the spectrum is the Fourier transform of the covariance (and γ(0) = (1/2π)∫Γ).
+(c) (i) **True**: a linear trend makes the mean time-dependent, violating m(t) = m. (ii) **False**: removing the trend fixes only the mean; seasonality or a time-varying variance may remain. (iii) **True**: a periodic component gives discrete spectral lines (peaks) at its frequency and harmonics. (iv) **True**: estimate the periodic component (e.g. average over periods) and subtract it.
+
+---
+
 # Appendix – Exam topics not covered yet
 
-These appear in past exams but are not in Lectures 1–10.
+These appear in past exams but are not in Lectures 1–11.
 
-- **Stochastic processes** (Jul 23 Ex. 4; Feb 25 Ex. 4.1–4.2; Jan 26 Ex. 4).
+- **Estimation of the spectrum from data** (periodogram, averaging): only partly covered by Lecture 11, see EX.L1–EX.L3.
 - **"Write your own question"** (Sep 23 Ex. 4).
 
 ---

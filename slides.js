@@ -1,4 +1,4 @@
-// Study notes for the lecture slides (Lectures 0–10).
+// Study notes for the lecture slides (Lectures 0–11).
 // For each lecture: file = image prefix (exams-style: slides/L01-03.jpg),
 // count = number of slides to show (blank pages at the end are left out).
 // notes: key = slide number or range "a-b" (same note for the whole range).
@@ -453,6 +453,63 @@ window.SLIDES = [
       "17": { k: "Reading the states",
         b: "- Large positive PC1 (California, Nevada, Florida): **high crime**; negative (South Dakota): low crime.\n- California also high on PC2: **highly urban**; Mississippi the opposite.\n- Near zero on both (Virginia): **average** crime and urbanization.\n\nThe signs in the plot are opposite to the table: a principal direction is defined **up to its sign** (v and −v give the same variance).",
         x: "Exam angle: PCA is unsupervised (ignores y), linear, and sensitive to scaling: standardize first." }
+    }
+  },
+
+  {
+    lecture: 11, title: "Stochastic processes", file: "L11", count: 23,
+    notes: {
+      "1": { k: "Lecture 11", b: "From static maps to **signals in time** that are random. Title picture: several realizations of the same random process. This lecture gives the tools to describe them: mean, covariance, stationarity, white noise, spectrum." },
+      "2": { k: "Why time matters",
+        b: "So far f(x) was a **static map**: y depends only on the current x. In systems and control y_t depends also on **past values** of x and y, e.g. y_t = f(y_{t−1}, y_{t−2}, …, x_t, x_{t−1}, …, x_{t−m}). **We need to take the time variable into account.**" },
+      "3": { k: "Definition of a stochastic process ★",
+        b: "A **stochastic process (SP)** is an **infinite sequence of random variables, all defined on the same probabilistic space**: x(s, t), s = outcome, t = time.\n\nThe curves are **several realizations of the same SP**: each run of the random experiment gives a whole signal." },
+      "4": { k: "Two ways to slice it ★",
+        b: "- **Fix s = s̄**: x(s̄, t) is a **deterministic signal** (one realization).\n- **Fix t = t̄**: x(s, t̄) is a **random variable** (scalar) with its pdf (orange).",
+        x: "A one-line exam definition: “for fixed s a signal, for fixed t a random variable”." },
+      "5": { k: "Wide-sense characterization",
+        b: "A full description would need the **pdf and its evolution through time**: too complex for learning. We use the **wide-sense** description: only the **mean** and the **covariance function**." },
+      "6": { k: "Mean function",
+        b: "**m(t) = 𝔼_s[x(s, t)]**: at every t, the average **over the realizations** (green), not over time. It is a function of time (red curve)." },
+      "7": { k: "Covariance function ★",
+        b: "**γ(t₁, t₂) = 𝔼_s[(x(s, t₁) − m(t₁))(x(s, t₂) − m(t₂))]**\n\n- t₁ ≠ t₂: how much x(t₁) and x(t₂) are **correlated** (orange).\n- t₁ = t₂: γ(t₁, t₁) = 𝔼[(x(t₁) − m(t₁))²], the **variance** at t₁ (blue)." },
+      "8": { k: "Stationary processes ★",
+        b: "**SSP** = small subset of all SPs, but very important in systems and control.\n\nA SP is **stationary in the wide sense** if:\n1. **m(t) = m ∀t**;\n2. **γ(t₁, t₂) depends only on τ = t₂ − t₁**: γ(t₁, t₂) = γ(τ).",
+        x: "To prove stationarity you must check **both** conditions (slides 11–14)." },
+      "9": { k: "Stationary: what it looks like",
+        b: "The realizations fluctuate around a **constant mean** m with statistics that do not change in time.\n\n- variance: **γ(0) = 𝔼[(x(s, t) − m)²]**\n- covariance at lag τ: **γ(τ) = 𝔼[(x(s, t) − m)(x(s, t − τ) − m)]**" },
+      "10": { k: "Properties of γ(τ) ★",
+        b: "- **P1 Non-negativity**: γ(0) = 𝔼[(x − m)²] ≥ 0.\n- **P2 Variance prevalence**: |γ(τ)| ≤ γ(0) ∀τ (Cauchy–Schwarz).\n- **P3 Symmetry**: γ(τ) = γ(−τ), an even function.\n\nThe graph: maximum at τ = 0, mirrored, always inside the band [−γ(0), γ(0)]. τ is the **lag**.",
+        x: "Quick check of a proposed covariance: if some |γ(τ)| > γ(0), or γ is not even, it cannot be a covariance function." },
+      "11": { k: "Example 1: x = α(s)",
+        b: "x(s, t) = α(s) for all t, with α ~ N(1, 3) (mean 1, variance 3). Is it a SSP? Check the two conditions: constant mean, covariance depending only on τ." },
+      "12": { k: "Example 1: solution ★",
+        b: "1. m(t) = 𝔼[α] = 1 ∀t ✓\n2. γ(t₁, t₂) = 𝔼[(α − 1)(α − 1)] = 𝔼[(α − 1)²] = 3 ∀t₁, t₂ ⇒ γ(τ) = 3 ✓\n\n**Stationary.** Every realization is a flat line at a random height, so γ(τ) = γ(0) for every lag (it never decays)." },
+      "13": { k: "Example 2: x = α(s)·t − t ★",
+        b: "1. m(t) = t·𝔼[α] − t = t − t = **0** ✓\n2. γ(t₁, t₂) = 𝔼[(α − 1)t·(α − 1)(t − τ)] = t(t − τ)·𝔼[(α − 1)²] = **3·t₁·t₂** ✗\n\nγ depends on both t₁ and t₂ ⇒ **not stationary**, even though the mean is constant." },
+      "14": { k: "Example 2: the picture",
+        b: "x = t·(α(s) − 1): straight lines through the origin with random slope: increasing if α > 1 (blue), decreasing if α < 1 (purple). The spread grows with t (variance 3t²): the statistics change with time." },
+      "15": { k: "White noise ★",
+        b: "A SSP is a **white noise** e ~ WN(μ, λ²) if:\n- 𝔼[e(t)] = μ\n- 𝔼[(e(t) − μ)²] = λ²\n- **γ_e(τ) = 0 ∀τ ≠ 0**\n\nIts covariance is a single spike λ² at τ = 0: samples at different times are **uncorrelated**.",
+        x: "The building block of the course (and of Module 2): other processes are white noise passed through filters." },
+      "16": { k: "Frequency domain: deterministic signals",
+        b: "A **periodic** signal of period T has a **Fourier series** (discrete lines); a **non-periodic** signal has a **Fourier transform** X(f), a continuous spectrum." },
+      "17": { k: "Frequency domain: stochastic setting",
+        b: "Each realization of x(s, t) is different: **it sounds meaningless to work with the frequency-domain counterpart of one single realization**. We need a frequency description of the whole process." },
+      "18": { k: "Spectral density ★",
+        b: "The **spectral density** (“spectrum”) of a SSP is the Fourier transform of its covariance function:\n\n**Γ(ω) = Σ_{τ=−∞}^{+∞} γ(τ) e^(−jωτ)**\n\nPicture: a γ(τ) decaying slowly gives a spectrum concentrated at low frequencies." },
+      "19": { k: "Spectrum of a white noise ★",
+        b: "e ~ WN(0, λ²): only γ_e(0) = λ² is non-zero, so\n\nΓ_e(ω) = γ_e(0)·e^(−jω·0) + 0 + … = **λ²** ∀ω.\n\n**The spectrum of a WN is flat ⇔ all frequencies are equally present in one WN realization.**",
+        x: "A favourite short derivation: write the sum and cross out every term with τ ≠ 0." },
+      "20": { k: "Properties of Γ(ω) ★",
+        b: "- **P1 Realness**: Im(Γ(ω)) = 0 ∀ω\n- **P2 Non-negativity**: Γ(ω) ≥ 0\n- **P3 Symmetry**: Γ(ω) = Γ(−ω)\n- **P4 Periodicity** of period 2π: Γ(ω) = Γ(ω + 2πk)\n\nSo it is enough to look at ω ∈ [0, π]." },
+      "21": { k: "Inverse transform and variance ★",
+        b: "**γ(τ) = (1/2π) ∫_{−π}^{π} Γ(ω) e^(jωτ) dω**.\n\nInteresting fact: at τ = 0, e^0 = 1 ⇒ **γ(0) = Var[x] = (1/2π) ∫_{−π}^{π} Γ(ω) dω**: the variance is the **area under the graph of Γ** (yellow) divided by 2π.",
+        x: "Exam 3 Jul 2023: “how to compute the variance from the frequency plot of the spectral density”: exactly this." },
+      "22": { k: "Check on white noise",
+        b: "Γ = λ² on [−π, π]: area A = (π − (−π))·λ² = 2πλ². Then γ(0) = A/2π = **λ²** ✓, the variance of the white noise." },
+      "23": { k: "Two equivalent descriptions ★",
+        b: "A SSP can be represented by:\n1. **mean m and covariance function γ(τ)**: time-domain description;\n2. **mean m and spectral density Γ(ω)**: frequency-domain description.\n\nThey are equivalent: γ and Γ are a Fourier-transform pair." }
     }
   }
 ];
