@@ -394,7 +394,7 @@ SCREENS.learn = function () {
   const starsKnown = stars.filter(q => isKnown(q.id)).length;
   const due = p1.filter(q => cardState(q.id).seen && isDue(q.id)).length;
 
-  view.append(el(`<div><div class="eyebrow">Prof. Formentin · Lectures 1–11</div>
+  view.append(el(`<div><div class="eyebrow">Prof. Formentin · Lectures 1–12</div>
     <h2 class="section">${esc(COURSE.name)}</h2></div>`));
 
   view.append(el(`<div class="summary">
@@ -976,7 +976,7 @@ SCREENS.exam = function (screen) {
     s.addEventListener("click", () => { screen.mode = "sol"; render(); window.scrollTo(0, 0); });
     view.append(s);
   } else {
-    if (!qs.length) view.append(el(`<div class="card empty">This exam's exercises are on topics not covered yet in Lectures 1–11.</div>`));
+    if (!qs.length) view.append(el(`<div class="card empty">This exam's exercises are on topics not covered yet in Lectures 1–12.</div>`));
     const list = el(`<div class="qlist"></div>`);
     for (const q of qs) list.append(questionCard(q, false));
     view.append(list);
@@ -1080,7 +1080,7 @@ function questionsForSlide(lecture, n) {
 
 SCREENS.slides = function () {
   setTitle("Slides & visuals");
-  view.append(el(`<div><div class="eyebrow">Lectures 0–11</div><h2 class="section">Slides with study notes</h2></div>`));
+  view.append(el(`<div><div class="eyebrow">Lectures 0–12</div><h2 class="section">Slides with study notes</h2></div>`));
   view.append(el(`<p class="lede">${HAS_SLIDE_IMAGES ? "Every slide with" : "For every slide:"} the key idea, an explanation, exam tips and the related questions from your bank.${HAS_SLIDE_IMAGES ? "" : " The slide images themselves are only in your private version (they are copyrighted), so open the PDF next to these notes."}</p>`));
   const list = el(`<div class="lect-list"></div>`);
   for (const d of window.SLIDES || []) {
@@ -1101,7 +1101,7 @@ SCREENS.slides = function () {
   view.append(el(`<div><div class="eyebrow">${Object.keys(window.VIZ || {}).length} animations and simulations</div><h2 class="section">Interactive visuals</h2></div>`));
   view.append(el(`<p class="lede">Play with the ideas: run the algorithms step by step, move the sliders, tap the plots. They also appear next to the matching slides.</p>`));
   const vl = el(`<div class="lect-list"></div>`);
-  for (let lec = 0; lec <= 11; lec++) {
+  for (let lec = 0; lec <= 12; lec++) {
     const ids = vizForLecture(lec);
     if (!ids.length) continue;
     const d = slideDeck(lec);

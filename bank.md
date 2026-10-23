@@ -13,7 +13,7 @@ Prof. Simone Formentin – A.Y. 2026-2027. Lectures 1–10 and past exam questio
 
 **Slide numbering.** Lecture 4 numbers refer to the complete PDF (28 slides), the version shown in the app.
 
-**Lectures covered:** 1 – The feasibility of learning; 2 – Linear regression; 3 – Linear classification; 4 – Logistic regression and numerical optimization; 5 – The bias-variance trade-off; 6 – Model selection (regularization and cross-validation); 7 – Nonlinear modeling (feature transforms and neural networks); 8 – Nonparametric classification (k-NN and classifier quality); 9 – Clustering (k-means and hierarchical clustering); 10 – Data pre-processing (centering, normalization, whitening, cleaning, PCA); 11 – Stochastic processes (mean, covariance, stationarity, white noise, spectral density).
+**Lectures covered:** 1 – The feasibility of learning; 2 – Linear regression; 3 – Linear classification; 4 – Logistic regression and numerical optimization; 5 – The bias-variance trade-off; 6 – Model selection (regularization and cross-validation); 7 – Nonlinear modeling (feature transforms and neural networks); 8 – Nonparametric classification (k-NN and classifier quality); 9 – Clustering (k-means and hierarchical clustering); 10 – Data pre-processing (centering, normalization, whitening, cleaning, PCA); 11 – Stochastic processes (mean, covariance, stationarity, white noise, spectral density); 12 – Learning with stochastic processes (sample estimators, periodogram, averaging, trend and seasonality).
 
 ---
 
@@ -172,6 +172,21 @@ WN(μ, λ²): mean μ, variance λ², γ(τ) = 0 ∀τ ≠ 0
 (D) WN: Γ(ω) = γ(0) = λ² (flat: all frequencies equally present)
 γ(τ) = (1/2π)∫_{−π}^{π} Γ(ω)e^(jωτ)dω  ⇒  γ(0) = variance = (1/2π)·area under Γ on [−π, π]
 SSP described by (m, γ(τ)) in time  or  (m, Γ(ω)) in frequency
+```
+## Board 12 – Learning with stochastic processes
+
+```text
+data = ONE realization 𝒟_N = {x(s̄,1), …, x(s̄,N)};  Q* = 𝔼[Q̂_N]
+E_out(Q̂_N) = 𝔼[(Q − Q̂_N)²] = (Q − Q*)² [bias] + 𝔼[(Q̂_N − Q*)²] [variance]
+correct: 𝔼[Q̂_N] = Q (zero bias)     consistent: 𝔼[(Q* − Q̂_N)²] → 0 as N → ∞
+m̂_N = (1/N)Σ x(t):  (D) correct;  consistent if γ(τ) → 0 as |τ| → ∞   (x = α: NOT)
+γ̂_N(τ) = 1/(N−|τ|) Σ_{t=1}^{N−|τ|} x(t)x(t+|τ|):  correct, consistent if γ → 0;  use |τ| ≪ N
+Γ̂_N(ω) = Σ_{|τ|<N} γ̂_N(τ)e^(−jωτ):  asymptotically correct, NOT consistent
+periodogram (1/N weights): Γ̂_N(ω) = (1/N)|Σ_t x(t)e^(−jωt)|²  → FFT
+averaging (Bartlett): K pieces of N/K, average the K periodograms ⇒ variance ≈ 1/K
+nonstationary: x = x_SSP + v(t): estimate v̂ → x̂_SSP = x − v̂ → m̂, γ̂, Γ̂ → m(t) = m̂ + v̂(t)
+trend v = kt + q: OLS [k̂; q̂] = [Σt² Σt; Σt N]⁻¹[Σ t·x(t); Σ x(t)]
+season v(t) = v(t+T), T known: v̂(t) = (1/M)Σ_{k=0}^{M−1} x(t + kT), t = 1…T
 ```
 ---
 
@@ -1728,6 +1743,164 @@ Check the properties: real ✓, even ✓, 2π-periodic ✓, ≥ 0 since 1 + c² 
 
 ---
 
+## Lecture 12 – Learning with stochastic processes
+
+### Key formulas
+- Data: **one realization** 𝒟_N = {x(s̄, 1), x(s̄, 2), …, x(s̄, N)} of a SSP x(s, t)
+- ★ Error of an estimator Q̂_N of Q, with Q* = 𝔼[Q̂_N]: **𝔼[(Q − Q̂_N)²] = (Q − Q*)² + 𝔼[(Q̂_N − Q*)²]** (bias + variance)
+- ★ **Correct** (unbiased): 𝔼[Q̂_N] = Q. **Consistent**: 𝔼[(Q* − Q̂_N)²] → 0 as N → ∞ (asymptotically zero variance)
+- ★ Sample mean: **m̂_N = (1/N) Σ_{t=1}^{N} x(s̄, t)**: correct; consistent if **γ(τ) → 0 as |τ| → ∞**
+- ★ Sample covariance (zero-mean SSP): **γ̂_N(τ) = 1/(N − |τ|) Σ_{t=1}^{N−|τ|} x(t)x(t + |τ|)**, −N < τ < N: correct; consistent if γ(τ) → 0. In practice **|τ| ≪ N**
+- ★ Sample spectral density: **Γ̂_N(ω) = Σ_{τ=−(N−1)}^{N−1} γ̂_N(τ) e^(−jωτ)**, −π < ω ≤ π: two approximations (truncated sum, estimated γ); **asymptotically correct, NOT consistent**
+- ★ Periodogram (weights 1/N instead of 1/(N − |τ|)): **Γ̂″_N(ω) = (1/N) |Σ_{t=1}^{N} x(t) e^(−jωt)|²**, computed with the FFT
+- ★ Averaging: split the data in K parts, **Γ̂*_N = (1/K) Σ_k Γ̂″^[k]_{N/K}** ⇒ 𝔼[(Γ̂* − Γ)²] ≈ (1/K)·𝔼[(Γ̂″ − Γ)²]
+- ★ Nonstationary model: **x(s, t) = x_SSP(s, t) + v(t)** (deterministic part v)
+- ★ Linear trend v(t) = kt + q by OLS: **[k̂; q̂] = [Σt² Σt; Σt N]⁻¹ [Σ t·x(t); Σ x(t)]**
+- ★ Seasonality v(t) = v(t + kT), T known: **v̂(t) = (1/M) Σ_{k=0}^{M−1} x(t + kT)**, t = 1…T, M·T ≤ N
+
+### L12.Q1 – Which learning problems arise with stochastic processes? What are the data?
+*Source: Lecture 12, slide 2*
+
+Working with time realizations of a SSP we want to estimate: (1) the **mean** m; (2) the **covariance function** γ(τ); (3) the **spectral density** Γ(ω). The common starting point is a **finite set** of samples of **one specific realization**: 𝒟_N = {x(s̄, 1), …, x(s̄, N)}. Unlike Lectures 1–10 we do not have many independent pairs (x⁽ⁱ⁾, y⁽ⁱ⁾): we have one signal, and its samples are correlated.
+
+### L12.Q2 – Decompose the error of an estimator into bias and variance. ★
+*Source: Lecture 12, slide 3*
+
+Given a quantity Q and an estimator Q̂_N computed from 𝒟_N, the out-of-sample error is E_out(Q̂_N) = 𝔼[(Q − Q̂_N)²]. With Q* = 𝔼[Q̂_N] (the average estimate):
+
+**𝔼[(Q − Q̂_N)²] = (Q − Q*)² + 𝔼[(Q̂_N − Q*)²]** = **bias** + **variance**
+
+(the cross term vanishes because 𝔼[Q̂_N − Q*] = 0). It is the same decomposition as Lecture 5, with the estimator in place of the learned model.
+
+### L12.Q3 – When is an estimator correct? When is it consistent? ★
+*Source: Lecture 12, slide 4*
+
+- **Correct** (unbiased): **𝔼[Q̂_N] = Q* = Q**, zero bias.
+- **Consistent**: **𝔼[(Q* − Q̂_N)²] → 0 as N → ∞**, asymptotically zero variance.
+
+A correct and consistent estimator gets arbitrarily close to Q with more data. Correctness alone is not enough: an unbiased estimator can stay very noisy.
+
+### L12.Q4 – Define the sample mean and prove that it is correct. ★
+*Source: Lecture 12, slides 5–6*
+
+Goal: from 𝒟_N infer m = 𝔼_s[x(s, t)]. Proposal: **m̂_N = (1/N) Σ_{t=1}^{N} x(s̄, t)** (a time average over one realization).
+
+Correctness: 𝔼_s[m̂_N] = (1/N) Σ_t 𝔼_s[x(s, t)] = (1/N) Σ_t m = (1/N)·N·m = **m** ✓ (stationarity: the mean is the same at every t).
+
+### L12.Q5 – When is the sample mean consistent? Give a counterexample. ★
+*Source: Lecture 12, slides 6–7*
+
+**m̂_N is consistent if γ(τ) → 0 as |τ| → ∞**: samples far apart in time are almost uncorrelated, so a long realization keeps bringing new information. Good news: this holds for **all the SSPs of this course**.
+
+Counterexample: x(s, t) = α(s), α ~ N(0, 1), so 𝔼[x] = 0. Then m̂_N = (1/N) Σ α(s̄) = α(s̄): generally different from zero, and **increasing N does not decrease the error** (every realization is a flat line). In fact γ(τ) = 1 for every τ: it does not go to 0.
+
+### L12.Q6 – Define the sample covariance function. Why must |τ| ≪ N? ★
+*Source: Lecture 12, slides 8–9*
+
+For a zero-mean SSP, γ(τ) = 𝔼[x(t)x(t − τ)]. Proposal:
+
+**γ̂_N(τ) = 1/(N − τ) Σ_{t=1}^{N−τ} x(s̄, t)x(s̄, t + τ)**, 0 ≤ τ < N; variation for −N < τ < N: γ̂′_N(τ) = 1/(N − |τ|) Σ_{t=1}^{N−|τ|} x(t)x(t + |τ|).
+
+Each lag averages a different number of products: γ̂(0) averages N squares, γ̂(1) N − 1 products, …, **γ̂(N − 1) = x(1)·x(N) relies on only two points**. So: in theory |τ| < N, **in practice |τ| ≪ N**, otherwise the estimate is very noisy. (For non-zero mean, subtract m̂_N first.)
+
+### L12.Q7 – Prove that γ̂_N(τ) is correct. When is it consistent? ★
+*Source: Lecture 12, slide 10*
+
+𝔼[γ̂_N(τ)] = 1/(N − τ) Σ_{t=1}^{N−τ} 𝔼[x(t)x(t + τ)] = 1/(N − τ) Σ_{t=1}^{N−τ} γ(τ) = ((N − τ)/(N − τ))·γ(τ) = **γ(τ)** ✓.
+
+**Consistency**: γ̂_N(τ) is consistent if **γ(τ) → 0 as |τ| → ∞**, the same condition as for the mean.
+
+### L12.Q8 – Define the sample spectral density. Which approximations does it contain? ★
+*Source: Lecture 12, slide 11*
+
+Goal (zero-mean SSP): Γ(ω) = Σ_{τ=−∞}^{+∞} γ(τ)e^(−jωτ), with ω in (−π, π] by periodicity. Proposal:
+
+**Γ̂_N(ω) = Σ_{τ=−(N−1)}^{N−1} γ̂′_N(τ) e^(−jωτ)**, −π < ω ≤ π.
+
+Two sources of approximation: (1) the **sum is truncated** to |τ| ≤ N − 1 (we have no lags beyond); (2) the true γ(τ) is replaced by its **estimate** γ̂′_N(τ).
+
+### L12.Q9 – Is Γ̂_N(ω) correct?
+*Source: Lecture 12, slide 12*
+
+𝔼[Γ̂_N(ω)] = Σ_{τ=−(N−1)}^{N−1} 𝔼[γ̂_N(τ)]e^(−jωτ) = Σ_{τ=−(N−1)}^{N−1} γ(τ)e^(−jωτ), since γ̂_N is correct. This is the truncated version of Γ(ω), so it is not exactly Γ(ω) for finite N, but **𝔼[Γ̂_N(ω)] → Γ(ω) as N → ∞**: **asymptotic correctness**.
+
+### L12.Q10 – Is Γ̂_N consistent? What is the computational problem and its solution? ★
+*Source: Lecture 12, slide 13*
+
+**Γ̂_N(ω) is NOT consistent, even if γ(τ) → 0**: its variance does not vanish as N grows (the large lags, estimated from very few products, keep adding noise).
+
+Computational problem: we would first compute all γ̂_N(τ) and then Γ̂_N(ω). Solution: use the estimator γ̂″_N(τ) = (1/N) Σ_{t=1}^{N−|τ|} x(t)x(t + |τ|) (weight 1/N). Then one can prove
+
+**Γ̂″_N(ω) = Σ_{τ=−(N−1)}^{N−1} γ̂″_N(τ)e^(−jωτ) = (1/N) |Σ_{t=1}^{N} x(t)e^(−jωt)|²**,
+
+the **periodogram**: the squared magnitude of the discrete Fourier transform of the data, efficiently computable with the **FFT**.
+
+### L12.Q11 – How is the consistency problem solved in practice? ★
+*Source: Lecture 12, slides 14–15; exam 3 Jul 2023, Ex. 4c*
+
+Γ̂″_N is not consistent: 𝔼[(Γ̂″_N(ω) − Γ(ω))²] does not go to 0 as N → ∞, so **increasing N is not a solution** (the plot stays a noisy band around Γ). Solution: **averaging**. Split the data into K parts (the slides use K = 3, each of length N/3), compute a periodogram on each, and average them:
+
+**Γ̂*_N(ω) = (1/K) Σ_{k=1}^{K} Γ̂″^[k]_{N/K}(ω)** ⇒ **𝔼[(Γ̂*_N − Γ)²] ≈ (1/K)·𝔼[(Γ̂″_N − Γ)²]**.
+
+The variance drops by a factor K (red curve vs blue on slide 15). Extra: the price is a lower frequency resolution, since each piece is shorter (bias–variance again). Useful only when N is large.
+
+### L12.Q12 – What if the process is not stationary? What is the standard procedure? ★
+*Source: Lecture 12, slides 16–17*
+
+Two types of nonstationarity are considered: (1) a **linear trend**; (2) **seasonality**. Model: **x(s, t) = x_SSP(s, t) + v(t)**: a stationary part plus a **deterministic** component.
+
+Procedure:
+1. estimate the nonstationary part **v̂(t)**;
+2. remove it: **x̂_SSP(s̄, t) = x(s̄, t) − v̂(t)**;
+3. work with the SSP: estimate m̂, γ̂(τ), Γ̂(ω);
+4. go back to x: **m(t) = m̂ + v̂(t)**.
+
+### L12.Q13 – (Derivation) How is a linear trend estimated and removed? ★
+*Source: Lecture 12, slides 18–20; exams 13 Feb 2025, Ex. 4.3 and 21 Jan 2026, Ex. 4c*
+
+Model of the trend: **v(t) = kt + q**. Intuition: 𝔼[x_SSP(t)] = 𝔼[x(t) − v(t)] = 0, so choose k, q minimizing 𝔼[(x(t) − (kt + q))²]. Replace the expectation with the sample average:
+
+v̂ = argmin_{k,q} (1/N) Σ_{t=1}^{N} (x(t) − [k q][t; 1])²
+
+This is **linear regression** (Lecture 2) with input [t, 1] and output x(t). OLS gives
+
+**[k̂; q̂] = [Σt² Σt; Σt N]⁻¹ [Σ t·x(t); Σ x(t)]**, then **v̂(t) = k̂t + q̂** and **x̂_SSP(t) = x(t) − v̂(t)**.
+
+### L12.Q14 – How is seasonality estimated? Why does it work? ★
+*Source: Lecture 12, slides 21–22; exam 21 Jan 2026, Ex. 4c(iv)*
+
+Assume x(t) = x_SSP(t) + v(t) with **v(t) = v(t + kT)**, k ∈ ℤ, and the **period T known**. Key idea: average the data over the M periods available (M·T ≤ N):
+
+**v̂(t) = (1/M) Σ_{k=0}^{M−1} x(t + kT)**, t = 1, …, T.
+
+Why it works: v̂(t) = (1/M) Σ x_SSP(t + kT) + (1/M) Σ v(t + kT). The second term is (1/M)·M·v(t) = v(t) by periodicity; the first is an average of a zero-mean SSP, which goes to **0 if M is large**. So v̂(t) → v(t).
+
+### L12.Q15 – (Extra) Weights 1/(N − |τ|) or 1/N for the covariance estimate?
+*Source: Lecture 12, slides 8–13 (extra)*
+
+- 1/(N − |τ|) (γ̂_N): **correct** for every τ, but at large lags it divides a few products by a small number: high variance.
+- 1/N (γ̂″_N): **biased**, 𝔼[γ̂″_N(τ)] = ((N − |τ|)/N)·γ(τ), but **asymptotically correct**, with smaller values (and variance) at large lags; its transform is the periodogram (1/N)|Σx(t)e^(−jωt)|², which is always ≥ 0 like a true spectrum and computable by FFT.
+
+A small bias in exchange for less variance: the bias–variance trade-off again.
+
+### L12.Q16 – (Extra) Why is γ(τ) → 0 the key condition?
+*Source: Lecture 12, slides 6–10 (extra)*
+
+The data are N samples of **one** realization, so they are not independent as in Lectures 1–10. If γ(τ) → 0, samples far apart are nearly uncorrelated: a long realization behaves like many almost-independent samples, and averages over time converge (the time average replaces the ensemble average, like Hoeffding in Lecture 1). If γ does not decay (x = α), the realization never “forgets” its starting value and more data do not help.
+
+### L12.Q17 – (Exam) Given one measured time series, describe the complete workflow.
+*Source: Lecture 12, slides 2–22; exams 13 Feb 2025, Ex. 4 and 21 Jan 2026, Ex. 4*
+
+1. Plot the data and look for a **trend** and **seasonality** (known period T).
+2. Estimate the trend by **OLS**, v̂ = k̂t + q̂, and subtract it.
+3. Estimate the seasonal component by **averaging over periods**, and subtract it.
+4. On the residual x̂_SSP: **m̂_N**, then **γ̂_N(τ)** for |τ| ≪ N, then the spectrum with the **periodogram (FFT) + averaging** over K pieces.
+5. Check consistency conditions (γ̂ decays to 0) and report m(t) = m̂ + v̂(t).
+
+Statements to know: a trend violates stationarity (time-varying mean); removing the trend does **not** guarantee stationarity (seasonality or changing variance may remain); a periodic component appears as **spectral lines**.
+
+---
+
 ## Big picture (Lectures 1–10)
 
 ### BP.Q1 – What is the real goal of the course?
@@ -2276,21 +2449,21 @@ Take the first two columns of V (the loadings of PC1 and PC2), V₂ ∈ ℝ^{4×
 ## L. Stochastic processes
 
 ### EX.L1 – Spectral density: definition, properties, variance from its plot; estimation from data.
-*Exam: 3 Jul 2023, Ex. 4. Theory: Lecture 11, slides 18–22*
+*Exam: 3 Jul 2023, Ex. 4. Theory: Lecture 11, slides 18–22; Lecture 12, slides 11–15*
 
 (a) For a stationary SP, **Γ(ω) = Σ_{τ=−∞}^{+∞} γ(τ)e^(−jωτ)**. Properties: real, Γ(ω) ≥ 0, even (Γ(ω) = Γ(−ω)), periodic with period 2π. Variance from the plot: by the inverse transform at τ = 0, **γ(0) = (1/2π)∫_{−π}^{π}Γ(ω)dω**, so measure the area under Γ on [−π, π] and divide by 2π (by symmetry: twice the area on [0, π], divided by 2π). Example: white noise, Γ = λ² ⇒ γ(0) = λ².
-(b)–(c) *Estimation from data is treated after Lecture 11 (official solution: “lecture notes, chapter 15”).* From one realization of length N one can compute the sample covariance γ̂(τ) and its transform, or the **periodogram** Γ̂(ω) = (1/N)|Σ_t x(t)e^(−jωt)|². It is asymptotically unbiased but **not a consistent estimator**: its variance does not go to 0 as N grows, so the plot stays noisy. With a large dataset, reduce the variance by **averaging**: split the data into sub-batches, compute a periodogram on each and average them (Bartlett/Welch), or smooth the spectrum (windowing γ̂(τ)). The price is a lower frequency resolution.
+(b)–(c) *Estimation from data: Lecture 12.* From one realization of length N one can compute the sample covariance γ̂(τ) and its transform, or the **periodogram** Γ̂(ω) = (1/N)|Σ_t x(t)e^(−jωt)|². It is asymptotically unbiased but **not a consistent estimator**: its variance does not go to 0 as N grows, so the plot stays noisy. With a large dataset, reduce the variance by **averaging**: split the data into sub-batches, compute a periodogram on each and average them (Bartlett/Welch), or smooth the spectrum (windowing γ̂(τ)). The price is a lower frequency resolution.
 
 ### EX.L2 – Output of a stable filter: sample mean, covariance, spectrum; consistency; linear trend.
-*Exam: 13 Feb 2025, Ex. 4. Theory: Lecture 11, slides 6–10 and 18; Lecture 2 (OLS) for the trend*
+*Exam: 13 Feb 2025, Ex. 4. Theory: Lecture 11, slides 6–10 and 18; Lecture 12, slides 5–15 and 18–20*
 
-y_t = H(q)w_t with w ~ WN(0, 1) and H stable is a stationary process. *The estimators go slightly beyond Lecture 11.*
+y_t = H(q)w_t with w ~ WN(0, 1) and H stable is a stationary process.
 1. **Sample estimators**: μ̂ = (1/N)Σ y_t; γ̂(τ) = (1/N)Σ_{t=1}^{N−τ}(y_t − μ̂)(y_{t+τ} − μ̂); periodogram Γ̂(ω) = (1/N)|Σ_t y_t e^(−jωt)|², ω ∈ [−π, π].
 2. **Consistency** (N → ∞): μ̂ is consistent; γ̂(τ) is asymptotically consistent but gets worse for large τ (few products to average); the periodogram is **not consistent** (high variance), improved by smoothing/averaging.
 3. **Linear trend**: y_t = α + βt + ỹ_t is **not stationary** (the mean changes with t). Estimate α, β by **OLS** on (t, y_t) (EX.B7), subtract the trend ỹ_t = y_t − (α̂ + β̂t), then compute μ̂, γ̂, Γ̂ on ỹ_t.
 
 ### EX.L3 – Temperature as a stationary process: estimators, PSD estimation, trends and seasonality (true/false).
-*Exam: 21 Jan 2026, Ex. 4. Theory: Lecture 11, slides 6–10, 18–23*
+*Exam: 21 Jan 2026, Ex. 4. Theory: Lecture 11, slides 6–10, 18–23; Lecture 12, slides 5–22*
 
 (a) μ̂ = (1/N)Σ x(t); γ̂(τ) = (1/N)Σ_{t=1}^{N−|τ|}(x(t) − μ̂)(x(t + |τ|) − μ̂), |τ| < N (1/(N − |τ|) is also used). Consistent if the process is stationary and γ(τ) → 0 as |τ| → ∞.
 (b) Two ways: transform the estimated covariance, Γ̂(ω) = Σ_{|τ|<N} γ̂(τ)e^(−jωτ); or the periodogram Γ̂(ω) = (1/N)|X_N(ω)|² with X_N(ω) = Σ x(t)e^(−jωt). Theory: **Γ(ω) = Σ γ(τ)e^(−jωτ)**, the spectrum is the Fourier transform of the covariance (and γ(0) = (1/2π)∫Γ).
@@ -2300,9 +2473,8 @@ y_t = H(q)w_t with w ~ WN(0, 1) and H stable is a stationary process. *The estim
 
 # Appendix – Exam topics not covered yet
 
-These appear in past exams but are not in Lectures 1–11.
+These appear in past exams but are not in Lectures 1–12.
 
-- **Estimation of the spectrum from data** (periodogram, averaging): only partly covered by Lecture 11, see EX.L1–EX.L3.
 - **"Write your own question"** (Sep 23 Ex. 4).
 
 ---

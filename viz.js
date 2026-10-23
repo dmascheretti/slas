@@ -1,4 +1,4 @@
-// Interactive visuals for SLAS (Lectures 0–11).
+// Interactive visuals for SLAS (Lectures 0–12).
 // Each visual is a small canvas "lab" with buttons and sliders.
 // window.VIZ[id] = { lecture, title, desc, look: [what to observe], build(root) }
 // window.SLIDE_VIZ[lecture][slide] = [ids] links visuals to the slides.
@@ -2019,6 +2019,223 @@
     }
   };
 
+  // ==================================================================
+  // L12 – Estimating mean and covariance from one realization
+  // ==================================================================
+  VIZ.meanconv = {
+    lecture: 12, title: "Sample mean: correct and consistent?",
+    desc: "Each thin line is the sample mean m̂_N = (1/N)·Σ x(s̄, t) of one realization, as N grows. Dashed: the true mean m = 1. Band: ± 2 standard deviations of m̂_N over 200 realizations.",
+    look: ["AR(1) with mean 1: the lines are centred on m = 1 for every N (correct) and the band shrinks as N grows (consistent), because γ(τ) → 0.",
+      "Larger a: γ(τ) decays slowly, neighbouring samples carry similar information and the band shrinks more slowly.",
+      "x = α (slide 7): every realization is flat, so m̂_N = α(s̄) for every N. Still correct (𝔼[α] = 1) but the band never shrinks: γ(τ) = 1 does not go to 0, not consistent."],
+    build(root) {
+      const NMAX = 400, R = 200;
+      let kind = "ar", a = 0.5, Nbar = 100, means = [];
+      function make() {
+        means = [];
+        for (let r = 0; r < R; r++) {
+          const al = 1 + randn();
+          let prev = randn() / Math.sqrt(1 - a * a), sum = 0;
+          const m = [];
+          for (let t = 1; t <= NMAX; t++) {
+            let x;
+            if (kind === "ar") { prev = a * prev + randn(); x = 1 + prev; } else x = al;
+            sum += x; m.push(sum / t);
+          }
+          means.push(m);
+        }
+      }
+      make();
+      const statsAt = n => { const v = means.map(m => m[n - 1]); const mu = v.reduce((s0, x) => s0 + x, 0) / R; const s2 = v.reduce((s0, x) => s0 + (x - mu) ** 2, 0) / R; return [mu, s2]; };
+      const s = stage(root, 0.62);
+      const ctl = controls(root);
+      seg(ctl, [["ar", "AR(1): γ(τ) → 0"], ["alpha", "x = α: γ(τ) = 1"]], kind, v => { kind = v; make(); s.draw(); upd(); });
+      btn(ctl, "New realizations", () => { make(); s.draw(); upd(); }, true);
+      slider(ctl, "a (AR(1) memory)", 0, 0.95, 0.05, a, v => v.toFixed(2), v => { a = v; make(); s.draw(); upd(); });
+      slider(ctl, "N (vertical line)", 5, NMAX, 5, Nbar, v => "N = " + v, v => { Nbar = v; s.draw(); upd(); });
+      const ro = readout(root);
+      function upd() {
+        const [mu, v] = statsAt(Nbar);
+        ro.set(`At N = ${Nbar}: average of m̂_N = <b class="tnum">${fmt(mu, 3)}</b> (true m = 1) &nbsp;·&nbsp; Var[m̂_N] = <b class="tnum">${fmt(v, 4)}</b><br>` +
+          (kind === "ar" ? `γ(τ) = a^|τ|/(1 − a²) → 0 ⇒ <b>correct and consistent</b>. For large N, Var ≈ (1/N)·Σγ(τ) = ${fmt(1 / ((1 - a) ** 2) / Nbar, 4)}.`
+            : `γ(τ) = Var[α] = 1 for every τ ⇒ <b>correct but not consistent</b>: Var[m̂_N] = 1 for every N.`));
+      }
+      legend(root, [["--c1", "m̂_N of some realizations"], ["--c2", "true mean m = 1"], ["--c1", "± 2 std of m̂_N", "box"]]);
+      s.draw = function () {
+        const p = P(); s.clear();
+        const f = frame(s, [0, NMAX], [-2, 4]);
+        axes(s, f, { xl: "N (number of samples)", yl: "m̂_N", nx: 4, ny: 3 });
+        clip(s, f);
+        const c = s.ctx;
+        const st = [];
+        for (let n = 1; n <= NMAX; n += 3) st.push([n, ...statsAt(n)]);
+        c.fillStyle = alpha(p.c1, 0.14);
+        c.beginPath();
+        st.forEach(([n, m, v], i) => { const y = f.Y(m + 2 * Math.sqrt(v)); i ? c.lineTo(f.X(n), y) : c.moveTo(f.X(n), y); });
+        for (let i = st.length - 1; i >= 0; i--) c.lineTo(f.X(st[i][0]), f.Y(st[i][1] - 2 * Math.sqrt(st[i][2])));
+        c.closePath(); c.fill();
+        for (let r = 0; r < 10; r++) {
+          c.strokeStyle = alpha(p.c1, 0.55); c.lineWidth = 1.2;
+          c.beginPath(); means[r].forEach((m, k) => (k ? c.lineTo(f.X(k + 1), f.Y(m)) : c.moveTo(f.X(k + 1), f.Y(m)))); c.stroke();
+        }
+        c.strokeStyle = p.c2; c.lineWidth = 2.5; c.setLineDash([6, 4]);
+        c.beginPath(); c.moveTo(f.pad.l, f.Y(1)); c.lineTo(f.pad.l + f.pw, f.Y(1)); c.stroke();
+        c.strokeStyle = p.ink; c.lineWidth = 1.5; c.setLineDash([4, 4]);
+        c.beginPath(); c.moveTo(f.X(Nbar), f.pad.t); c.lineTo(f.X(Nbar), f.pad.t + f.ph); c.stroke(); c.setLineDash([]);
+        c.restore();
+      };
+      upd();
+    }
+  };
+
+  // ==================================================================
+  // L12 – Periodogram and averaging (Bartlett)
+  // ==================================================================
+  VIZ.periodogram = {
+    lecture: 12, title: "Periodogram: not consistent, fixed by averaging",
+    desc: "One realization of an AR(1) process x(t) = a·x(t−1) + e(t), e ~ WN(0, 1). Orange: the estimate of the spectrum from the data; blue: the true Γ(ω). Split the data into K parts and average the K periodograms.",
+    look: ["K = 1 (plain periodogram): increase N. The estimate does not get smoother: it fluctuates around Γ(ω) with a spread as large as Γ(ω) itself. Asymptotically correct, but not consistent.",
+      "K = 4 or 8: the estimate becomes much smoother, variance ≈ 1/K of the original (slide 15).",
+      "The price: each part has only N/K samples, so the frequency resolution is worse (peaks become wider, small bias). With large N you can afford a larger K."],
+    build(root) {
+      let a = 0.7, N = 512, K = 1, x = [];
+      const Gam = w => 1 / (1 - 2 * a * Math.cos(w) + a * a);
+      function simulate() {
+        x = []; let prev = randn() / Math.sqrt(1 - a * a);
+        for (let t = 0; t < 2048; t++) { prev = a * prev + randn(); x.push(prev); }
+      }
+      simulate();
+      const W = 160, ws = Array.from({ length: W }, (_, i) => (i + 0.5) * Math.PI / W);
+      function estimate() {
+        const L = Math.floor(N / K), out = new Array(W).fill(0);
+        for (let k = 0; k < K; k++) {
+          const seg0 = x.slice(k * L, (k + 1) * L);
+          const m = seg0.reduce((s0, v) => s0 + v, 0) / L;
+          for (let i = 0; i < W; i++) {
+            let re = 0, im = 0;
+            for (let t = 0; t < L; t++) { re += (seg0[t] - m) * Math.cos(ws[i] * t); im -= (seg0[t] - m) * Math.sin(ws[i] * t); }
+            out[i] += (re * re + im * im) / L / K;
+          }
+        }
+        return out;
+      }
+      let est = estimate();
+      const s = stage(root, 0.62);
+      const ctl = controls(root);
+      btn(ctl, "New realization", () => { simulate(); refresh(); }, true);
+      slider(ctl, "N (samples)", 64, 2048, 64, N, v => "N = " + v, v => { N = v; refresh(); });
+      seg(ctl, [["1", "K = 1"], ["2", "K = 2"], ["4", "K = 4"], ["8", "K = 8"]], String(K), v => { K = +v; refresh(); });
+      slider(ctl, "a (AR coefficient)", -0.8, 0.9, 0.05, a, v => v.toFixed(2), v => { a = v; simulate(); refresh(); });
+      const ro = readout(root);
+      function refresh() { est = estimate(); s.draw(); upd(); }
+      function upd() {
+        let e2 = 0;
+        for (let i = 0; i < W; i++) e2 += (est[i] / Gam(ws[i]) - 1) ** 2;
+        ro.set(`N = ${N}, K = ${K} parts of N/K = <b class="tnum">${Math.floor(N / K)}</b> samples &nbsp;·&nbsp; average relative squared error = <b class="tnum">${fmt(e2 / W, 2)}</b><br>Theory: ≈ 1 for the plain periodogram whatever N is; ≈ 1/K after averaging.`);
+      }
+      legend(root, [["--c1", "true Γ(ω)"], ["--c2", "estimate from data"]]);
+      s.draw = function () {
+        const p = P(); s.clear();
+        let gmax = 0; for (const w of ws) gmax = Math.max(gmax, Gam(w));
+        const top = gmax * 2.2;
+        const f = frame(s, [0, Math.PI], [0, top]);
+        axes(s, f, { xl: "ω", yl: "Γ(ω)", ny: 3, xticks: [0, Math.PI / 4, Math.PI / 2, 3 * Math.PI / 4, Math.PI], xfmt: v => ({ "0.000": "0", "0.785": "π/4", "1.571": "π/2", "2.356": "3π/4", "3.142": "π" })[Math.abs(v).toFixed(3)] || v.toFixed(1) });
+        clip(s, f);
+        const c = s.ctx;
+        c.strokeStyle = p.c2; c.lineWidth = 1.6;
+        c.beginPath(); ws.forEach((w, i) => { const y = f.Y(Math.min(est[i], top * 1.05)); i ? c.lineTo(f.X(w), y) : c.moveTo(f.X(w), y); }); c.stroke();
+        curve(s, f, Gam, p.c1, 3);
+        c.restore();
+      };
+      upd();
+    }
+  };
+
+  // ==================================================================
+  // L12 – Removing a linear trend and a seasonality
+  // ==================================================================
+  VIZ.detrend = {
+    lecture: 12, title: "Trend and seasonality removal",
+    desc: "Data x(t) = k·t + q + seasonal part of period T = 12 + stationary noise. Top: data and the OLS trend k̂t + q̂. Middle: detrended data and the seasonal estimate v̂(t) = (1/M)·Σ x(t + kT). Bottom: what is left, x̂_SSP.",
+    look: ["The OLS line follows the slow growth; after subtracting it the data oscillate around 0 (slides 18–20).",
+      "The seasonal estimate averages the M = N/T periods: with few periods (small N) it is noisy, with many it approaches the true pattern (slide 22: works if M is large).",
+      "The residual has constant mean and variance: on it we estimate m̂ and γ̂ as in the first part of the lecture.",
+      "Seasonality off: only the trend is removed, the middle plot is already the stationary part."],
+    build(root) {
+      const T = 12;
+      let N = 120, k = 0.08, noise = 0.6, seas = true, x = [], v0 = [];
+      const pattern = t => 2 * Math.sin(2 * Math.PI * t / T) + 0.8 * Math.cos(4 * Math.PI * t / T);
+      function simulate() {
+        x = []; v0 = [];
+        let prev = 0;
+        for (let t = 1; t <= 480; t++) { prev = 0.5 * prev + noise * randn(); v0.push(prev); }
+      }
+      function data() {
+        x = [];
+        for (let t = 1; t <= N; t++) x.push(k * t + 1 + (seas ? pattern(t) : 0) + v0[t - 1]);
+      }
+      simulate(); data();
+      let kh = 0, qh = 0, detr = [], vh = [], res = [];
+      function fitAll() {
+        let St2 = 0, St = 0, Stx = 0, Sx = 0;
+        for (let t = 1; t <= N; t++) { St2 += t * t; St += t; Stx += t * x[t - 1]; Sx += x[t - 1]; }
+        const w = solve([[St2, St], [St, N]], [Stx, Sx]);
+        kh = w[0]; qh = w[1];
+        detr = x.map((v, i) => v - (kh * (i + 1) + qh));
+        const M = Math.floor(N / T);
+        vh = [];
+        for (let t = 0; t < T; t++) { let s0 = 0; for (let m = 0; m < M; m++) s0 += detr[t + m * T]; vh.push(seas ? s0 / M : 0); }
+        res = detr.map((v, i) => v - vh[i % T]);
+      }
+      fitAll();
+      const s1 = stage(root, 0.36), s2 = stage(root, 0.36), s3 = stage(root, 0.32);
+      const ctl = controls(root);
+      seg(ctl, [["on", "With seasonality"], ["off", "Trend only"]], "on", v => { seas = v === "on"; refresh(); });
+      btn(ctl, "New noise", () => { simulate(); refresh(); }, true);
+      slider(ctl, "N (samples)", 24, 480, 12, N, v => `N = ${v} (M = ${Math.floor(v / T)} periods)`, v => { N = v; refresh(); });
+      slider(ctl, "true slope k", -0.1, 0.15, 0.01, k, v => v.toFixed(2), v => { k = v; refresh(); });
+      slider(ctl, "noise level", 0.1, 1.5, 0.1, noise, v => v.toFixed(1), v => { noise = v; simulate(); refresh(); });
+      const ro = readout(root);
+      function refresh() { data(); fitAll(); s1.draw(); s2.draw(); s3.draw(); upd(); }
+      function upd() {
+        let e = 0; for (let t = 0; t < T; t++) e += (vh[t] - (seas ? pattern(t + 1) : 0)) ** 2;
+        const m = res.reduce((s0, v) => s0 + v, 0) / N;
+        ro.set(`k̂ = <b class="tnum">${fmt(kh, 3)}</b> (true ${fmt(k, 3)}), q̂ = <b class="tnum">${fmt(qh, 2)}</b> (true 1.00)` +
+          (seas ? `<br>M = ${Math.floor(N / T)} periods averaged · seasonal error (RMS) = <b class="tnum">${fmt(Math.sqrt(e / T), 2)}</b>` : "") +
+          `<br>Residual x̂_SSP: m̂ = ${fmt(m, 3)}, ready for m̂ and γ̂.`);
+      }
+      function plot(st, ys, extra, lab, col) {
+        const p = P(); st.clear();
+        let lo = Infinity, hi = -Infinity;
+        ys.forEach(v => { lo = Math.min(lo, v); hi = Math.max(hi, v); });
+        const pad = 0.1 * (hi - lo + 1e-9);
+        const f = frame(st, [0, N + 1], [lo - pad, hi + pad], { pad: { t: 8, b: 24 } });
+        axes(st, f, { xl: "t", ny: 2, nx: 4 });
+        clip(st, f);
+        const c = st.ctx;
+        c.strokeStyle = alpha(col, 0.85); c.lineWidth = 1.3;
+        c.beginPath(); ys.forEach((v, i) => (i ? c.lineTo(f.X(i + 1), f.Y(v)) : c.moveTo(f.X(i + 1), f.Y(v)))); c.stroke();
+        if (extra) extra(c, f, p);
+        c.restore();
+        label(st, lab, f.pad.l + 6, f.pad.t + 8, col, "left", "middle", true);
+      }
+      s1.draw = function () {
+        const p = P();
+        plot(s1, x, (c, f, pp) => { c.strokeStyle = pp.c2; c.lineWidth = 2.5; c.beginPath(); c.moveTo(f.X(1), f.Y(kh + qh)); c.lineTo(f.X(N), f.Y(kh * N + qh)); c.stroke(); }, "data x(t) and OLS trend", p.c1);
+      };
+      s2.draw = function () {
+        const p = P();
+        plot(s2, detr, (c, f, pp) => {
+          if (!seas) return;
+          c.strokeStyle = pp.c2; c.lineWidth = 2.5;
+          c.beginPath(); for (let i = 0; i < N; i++) { const y = f.Y(vh[i % T]); i ? c.lineTo(f.X(i + 1), y) : c.moveTo(f.X(i + 1), y); } c.stroke();
+        }, seas ? "x − trend and seasonal v̂(t)" : "x − trend = x̂_SSP", p.c1);
+      };
+      s3.draw = function () { const p = P(); plot(s3, res, null, "residual x̂_SSP (stationary)", p.c3); };
+      upd();
+    }
+  };
+
   // ------------------------------------------------------------------
   // Which visuals go with which slides
   // ------------------------------------------------------------------
@@ -2034,7 +2251,8 @@
     8: { 1: ["knn"], 3: ["knn"], 5: ["knn"], 6: ["knn"], 7: ["knn"], 8: ["knn"], 9: ["knn"], 10: ["threshold"], 11: ["threshold"], 12: ["threshold"] },
     9: { 2: ["supunsup"], 4: ["kmeans"], 5: ["kmeans"], 6: ["kmeans"], 7: ["kmeans"], 8: ["kmeans"], 9: ["dendro"] },
     10: { 4: ["preprocess"], 5: ["preprocess"], 6: ["preprocess"], 7: ["ols"], 9: ["pca"], 10: ["pca"], 11: ["pca"], 12: ["pca"], 15: ["pca"] },
-    11: { 1: ["realizations"], 3: ["realizations"], 4: ["realizations"], 5: ["realizations"], 6: ["realizations"], 7: ["realizations"], 8: ["realizations"], 9: ["realizations"], 10: ["spectrum"], 11: ["realizations"], 12: ["realizations"], 13: ["realizations"], 14: ["realizations"], 15: ["spectrum"], 17: ["spectrum"], 18: ["spectrum"], 19: ["spectrum"], 20: ["spectrum"], 21: ["spectrum"], 22: ["spectrum"], 23: ["spectrum"] }
+    11: { 1: ["realizations"], 3: ["realizations"], 4: ["realizations"], 5: ["realizations"], 6: ["realizations"], 7: ["realizations"], 8: ["realizations"], 9: ["realizations"], 10: ["spectrum"], 11: ["realizations"], 12: ["realizations"], 13: ["realizations"], 14: ["realizations"], 15: ["spectrum"], 17: ["spectrum"], 18: ["spectrum"], 19: ["spectrum"], 20: ["spectrum"], 21: ["spectrum"], 22: ["spectrum"], 23: ["spectrum"] },
+    12: { 3: ["meanconv"], 4: ["meanconv"], 5: ["meanconv"], 6: ["meanconv"], 7: ["meanconv"], 10: ["meanconv"], 11: ["periodogram"], 12: ["periodogram"], 13: ["periodogram"], 14: ["periodogram"], 15: ["periodogram"], 16: ["detrend"], 17: ["detrend"], 18: ["detrend"], 19: ["detrend"], 20: ["detrend"], 21: ["detrend"], 22: ["detrend"] }
   };
 
   // Mount a visual inside a container: title, description, canvas, controls, "what to look at".
